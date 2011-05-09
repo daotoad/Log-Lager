@@ -1,4 +1,4 @@
-package Next::OpenSIPS::Log::CommandParser;
+package Log::Lager::CommandParser;
 use strict;
 use warnings;
 use Carp qw<croak>;
@@ -8,19 +8,19 @@ use Scalar::Util qw< blessed >;
 use Hash::Util  qw< lock_keys >;
 
 use Exporter qw( import );
-our @EXPORT_OK = qw( parse_command Next::OpenSIPS::Log::Command::REWIND );
+our @EXPORT_OK = qw( parse_command Log::Lager::Command::REWIND );
 
 sub new {
 
     my $self = {
         state            => 'start',
-        result           => Next::OpenSIPS::Log::CommandResult->new(),
+        result           => Log::Lager::CommandResult->new(),
         mask_select      => 'lexical',
         mask_group       => 'enable',
         mask             => undef,
         output           => 'stderr',
-        state_table      => \%Next::OpenSIPS::Log::Command::STATE_TABLE,
-        end_states       => \%Next::OpenSIPS::Log::Command::END_STATES,
+        state_table      => \%Log::Lager::Command::STATE_TABLE,
+        end_states       => \%Log::Lager::Command::END_STATES,
     };
 
     bless $self;
@@ -129,15 +129,15 @@ TEST:
 
 
 BEGIN {
-    package Next::OpenSIPS::Log::CommandResult;
+    package Log::Lager::CommandResult;
     use overload '""' => 'as_string';
 
     sub new {
         my $class = shift;
 
         my $self = {
-            lexical          => Next::OpenSIPS::Log::Mask->new(),
-            base             => Next::OpenSIPS::Log::Mask->new(),
+            lexical          => Log::Lager::Mask->new(),
+            base             => Log::Lager::Mask->new(),
             package          => {},
             sub              => {},
             syslog_identity  => undef,
@@ -177,11 +177,11 @@ BEGIN {
     # Use fully qualified name since 'package' is a Perl keyword.
     # This sucks a bit, but it makes it easy to map between language
     # keywords and method names.
-    sub Next::OpenSIPS::Log::CommandResult::package {
+    sub Log::Lager::CommandResult::package {
         my $self = shift;
         my $name = shift;
 
-        $self->{package}{$name} = Next::OpenSIPS::Log::Mask->new();
+        $self->{package}{$name} = Log::Lager::Mask->new();
 
         return $self->{package}{$name};
     }
@@ -203,11 +203,11 @@ BEGIN {
     # Use fully qualified name since 'sub' is a Perl keyword.
     # This sucks a bit, but it makes it easy to map between language
     # keywords and method names.
-    sub Next::OpenSIPS::Log::CommandResult::sub {
+    sub Log::Lager::CommandResult::sub {
         my $self = shift;
         my $name = shift;
 
-        $self->{sub}{$name} = Next::OpenSIPS::Log::Mask->new();
+        $self->{sub}{$name} = Log::Lager::Mask->new();
 
         return $self->{sub}{$name};
     }
@@ -238,7 +238,7 @@ BEGIN {
 }
 
 BEGIN {
-    package Next::OpenSIPS::Log::Mask;
+    package Log::Lager::Mask;
     use overload '""' => 'as_string';
     use constant GROUP_PAIRS => (
         [qw/ enable  disable /],
@@ -351,10 +351,9 @@ BEGIN {
 
 
 BEGIN {
-    package Next::OpenSIPS::Log::Command;
+    package Log::Lager::Command;
 
 =pod
-
 
 command_string -> command_group ( \s* command_group )
 command_group  -> ( mask_control | lex_control | output_control )
@@ -370,8 +369,6 @@ file_name      -> [\w\/]
 syslog_spec    -> syslog \s+ (syslog_conf | off )
 
 =cut
-
-
 
 # The state table defines a set of named states.  Each state consists of an
 # array of test definitions that dictate the state's behavior.
@@ -494,7 +491,7 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
         return;
     }
 
-    sub match_mask_group { /^($Next::OpenSIPS::Log::Mask::GROUP_REGEX)$/ }
+    sub match_mask_group { /^($Log::Lager::Mask::GROUP_REGEX)$/ }
     sub select_mask_group {
         print "selected mask group: $_\n";
         my $cp = shift;
@@ -502,7 +499,7 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
         return;
     }
 
-    sub match_mask_chars { /^[$Next::OpenSIPS::Log::Mask::MASK_REGEX]+$/ }
+    sub match_mask_chars { /^[$Log::Lager::Mask::MASK_REGEX]+$/ }
     sub set_mask {
         print "set mask: $_\n";
         my $cp = shift;
@@ -537,13 +534,13 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
 =head1 NAME
 
-Next::OpenSIPS::Log::CommandParser
+Log::Lager::CommandParser
 
 =head1 SYNOPSIS
 
-Provides command parsing for the Next::OpenSIPS::Log module.
+Provides command parsing for the Log::Lager module.
 
-    use Next::OpenSIPS::Log::CommandParser 'parse_command';
+    use Log::Lager::CommandParser 'parse_command';
 
     # Parse a command and get a CommandResult object back:
     my $result = parse_command( 'lexical enable FEW stack F' );
@@ -558,10 +555,10 @@ Collects the results of parsing a command.
 
 =head3 Attributes
 
- lexical          - The lexical logging mask. A C<Next::OpenSIPS::Log::Mask> object.
- base             - The lexical logging mask. A C<Next::OpenSIPS::Log::Mask> object.
- package          - Package logging masks defined in this command. A hash ref of C<Next::OpenSIPS::Log::Mask> objects, keyed by package name.
- sub              - Subroutine logging masks defined in this command. A hash ref of C<Next::OpenSIPS::Log::Mask> objects, keyed by subroutine name.
+ lexical          - The lexical logging mask. A C<Log::Lager::Mask> object.
+ base             - The lexical logging mask. A C<Log::Lager::Mask> object.
+ package          - Package logging masks defined in this command. A hash ref of C<Log::Lager::Mask> objects, keyed by package name.
+ sub              - Subroutine logging masks defined in this command. A hash ref of C<Log::Lager::Mask> objects, keyed by subroutine name.
  lexicals_enabled - A flag indicating if lexical logging effects are enabled or
                     disabled.  This flag is a three-valued boolean, where B<undef> means no specified value.
  output           - Contains the output type.  Must be one of C<stderr>, C<syslog> or C<file>.

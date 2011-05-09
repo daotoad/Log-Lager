@@ -1,15 +1,15 @@
-package Next::OpenSIPS::Log;
+package Log::Lager;
 
 use Data::Dumper ();
 
 use strict;
 use warnings;
 use Carp qw( croak ); 
-$Carp::Internal{'Next::OpenSIPS::Log'}++;
+$Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
 
-use Next::OpenSIPS::Log::CommandParser qw( parse_command );
-use Next::OpenSIPS::AbridgeData qw( abridge_items_recursive );
+use Log::Lager::CommandParser qw( parse_command );
+use Data::Abrdige qw( abridge_items_recursive );
 
 
 # Global configuration
@@ -26,6 +26,7 @@ my $OUTPUT_TARGET;      # Name of output facility
 my $SYSLOG_IDENTITY;    # Idenitity if using syslog output
 my $SYSLOG_FACILITY;    # Facility if using syslog output
 my $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
+
 my $OUTPUT_FILE_NAME;   # File name of for output if using file output.
 my $OUTPUT_FILE_HANDLE; # File handle if using file output.
 my $OUTPUT_FUNCTION;    # Code ref of emitter function.
@@ -268,8 +269,8 @@ sub _get_bits {
     my $s_mask = exists $SUBROUTINE_MASK{$sub}  ? $SUBROUTINE_MASK{$sub}  : [0,0];
     my $p_mask = exists $PACKAGE_MASK{$package} ? $PACKAGE_MASK{$package} : [0,0];
     my $l_mask = $ENABLE_LEXICAL
-               ? [$hints->{'Next::OpenSIPS::Log_enable'},
-                  $hints->{'Next::OpenSIPS::Log_disable'}]
+               ? [$hints->{'Log::Lager::Log_enable'},
+                  $hints->{'Log::Lager::Log_disable'}]
                : [0,0];
 
     my $mask = defined $BASE_MASK ? $BASE_MASK : 0;
@@ -473,7 +474,7 @@ sub import {
     # Import functions
     # Skip if this is not the first time through
     my $hints = (caller(1))[10];
-    unless( defined $hints->{'Next::OpenSIPS::Log_enable'} ) {
+    unless( defined $hints->{'Log::Lager::Log_enable'} ) {
         no strict 'refs';
 
         for my $_ ( @LOG_LEVELS ) {
@@ -487,13 +488,13 @@ sub import {
     if( @_ ) {
         # Apply log level mask
         my $mask = [
-            $^H{'Next::OpenSIPS::Log_enable'},
-            $^H{'Next::OpenSIPS::Log_disable'}
+            $^H{'Log::Lager::Log_enable'},
+            $^H{'Log::Lager::Log_disable'}
         ];
         $mask = _parse_commands( $mask, @_ ) if @_;
 
-        $^H{'Next::OpenSIPS::Log_enable'}  = $mask->[0] // 0;
-        $^H{'Next::OpenSIPS::Log_disable'} = $mask->[1] // 0;
+        $^H{'Log::Lager::Log_enable'}  = $mask->[0] // 0;
+        $^H{'Log::Lager::Log_disable'} = $mask->[1] // 0;
     }
 
     return;
@@ -506,15 +507,15 @@ sub unimport {
     shift;
     my @commands = @_;
 
-    croak "Us 'no Next::OpenSIPS::Log' with log level codes only"
+    croak "Us 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
     my $mask = [
-        $^H{'Next::OpenSIPS::Log_enable'},
-        $^H{'Next::OpenSIPS::Log_disable'}
+        $^H{'Log::Lager::Log_enable'},
+        $^H{'Log::Lager::Log_disable'}
     ];
     $mask = _parse_commands( $mask , 'lexical disable', @commands );
-    $^H{'Next::OpenSIPS::Log_disable'} = $mask->[1];
+    $^H{'Log::Lager::Log_disable'} = $mask->[1];
 
     return;
 }
@@ -523,7 +524,7 @@ sub unimport {
 # command.
 sub log_level {
 
-    my $r = Next::OpenSIPS::Log::CommandResult->new;
+    my $r = Log::Lager::CommandResult->new;
 
 
     # Base
@@ -532,8 +533,8 @@ sub log_level {
     # Lexical
     my $hints = (caller(0))[10];
     _apply_bits_to_mask(
-        $hints->{'Next::OpenSIPS::Log_enable'},
-        $hints->{'Next::OpenSIPS::Log_disable'},
+        $hints->{'Log::Lager::Log_enable'},
+        $hints->{'Log::Lager::Log_disable'},
         $r->lexical
     );
 
@@ -562,7 +563,7 @@ __END__
 
 =head1 NAME
 
-Next::OpenSIPS::Log - Easy to use, flexible, parsable logs.
+Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 SYNOPSIS
 
@@ -574,23 +575,23 @@ The goal is to provide an easy to use logging facility that meets developer
 and production needs.
 
     # Enable standard logging levels: FATAL ERROR WARN.
-    use Next::OpenSIPS::Log;
+    use Log::Lager;
 
     INFO('I Oh');  # Nothing happens, INFO is OFF
 
-    use Next::OpenSIPS::Log nonfatal => 'F', enable => 'I';  # FATAL events are no longer fatal.
+    use Log::Lager nonfatal => 'F', enable => 'I';  # FATAL events are no longer fatal.
 
     FATAL('Still kicking');
     INFO('I Oh');  # Nothing happens, INFO is OFF
 
-    {   no Next::OpenSIPS::Log 'I';   # Disable INFO
+    {   no Log::Lager 'I';   # Disable INFO
 
         INFO('I Oh NO');
     }
     INFO('I Oh');  # Nothing happens, INFO is OFF
 
     # Make FATAL fatal again.
-    use Next::OpenSIPS::Log fatal => 'F';
+    use Log::Lager fatal => 'F';
     FATAL('Oh noes');
 
 =head2 Log Format
@@ -646,7 +647,7 @@ Each mask beyond the base mask is stored as a difference from base.  Each mask l
 
 Lexical log mask is set by using this module in a given scope with a command string.
 
-    {   use Next::OpenSIPS::Log 'enable IDG stack F';
+    {   use Log::Lager 'enable IDG stack F';
         INFO 'I am ill.';
 
         if( $foo ) {
@@ -753,11 +754,11 @@ Disabled by default.
 
 =head1 OTHER FUNCTIONS
 
-=head2 Next::OpenSIPS::Log::log_level
+=head2 Log::Lager::log_level
 
-Emits a Next::OpenSIPS::Log command string capable of producing the current log level.
+Emits a Log::Lager command string capable of producing the current log level.
 
-=head2 Next::OpenSIPS::Log::apply_command
+=head2 Log::Lager::apply_command
 
 Run configuration commands at run-time.
 
@@ -834,24 +835,24 @@ Default logging is equivalent to C<base enable FEW>.
 
 =head3 Lexical manipulation
 
-=head4 use Next::OpenSIPS::Log
+=head4 use Log::Lager
 
-    use Next::OpenSIPS::Log 'IDT stack D';
+    use Log::Lager 'IDT stack D';
 
 Takes standard commands as a list of strings.  For example 
-C<use Next::OpenSIPS::Log qw( fatal FEW );> is equivalent to C<use Next::OpenSIPS::Log "fatal FEW";>
+C<use Log::Lager qw( fatal FEW );> is equivalent to C<use Log::Lager "fatal FEW";>
 
 While this usage type is capable of handling any command, it is best to
 restrict usage to configuring the lexical mask.
 
 To simplify proper usage, this interface assumes a leading C<lexical enable>
-at the beginning of a command set. For example, C<use Next::OpenSIPS::Log 'FEWIDG';> is the
-same as and C<use Next::OpenSIPS::Log 'lexicical enable FWEIDG';>.
+at the beginning of a command set. For example, C<use Log::Lager 'FEWIDG';> is the
+same as and C<use Log::Lager 'lexicical enable FWEIDG';>.
 
-=head4 no Next::OpenSIPS::Log
+=head4 no Log::Lager
 
-A simple shorthand for C<use Next::OpenSIPS::Log 'lexical disable BLAH'>.
-C<no Next::OpenSIPS::Log XXX> is equivalent to C<use Next::OpenSIPS::Log lexical => disable => 'XXX'>.
+A simple shorthand for C<use Log::Lager 'lexical disable BLAH'>.
+C<no Log::Lager XXX> is equivalent to C<use Log::Lager lexical => disable => 'XXX'>.
 
 Command strings may consist of only log level characters (nouns).
 
@@ -864,7 +865,7 @@ Assumes a leading C<enable base > at the start of the the command string:
 C<OPENSIPSLOG=FWEG foo.pl> is identical to C<OPENSIPSLOG='enable base FWEG' foo.pl>.
 
 Use normal command syntax.  Operates exactly as a program wide, unoverridable
-C<use Next::OpenSIPS::Log $ENV{OPENSIPSLOG}>.
+C<use Log::Lager $ENV{OPENSIPSLOG}>.
 
 Any changes to the logging level are applied to the default logging level.
 

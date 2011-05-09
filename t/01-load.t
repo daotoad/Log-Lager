@@ -5,7 +5,7 @@ use lib '../../../../lib';
 
 use Test::More tests => 24;
 
-use_ok( 'Next::OpenSIPS::Log' );
+use_ok( 'Log::Lager' );
 
 
 my @LOG_LEVELS = (
@@ -20,18 +20,18 @@ my @LOG_LEVELS = (
 
 for ( @LOG_LEVELS ) {
     my ($char, $value) = @{$_}[0,2];
-    is( Next::OpenSIPS::Log::_bitmask_to_mask_string( $value, 0 ), $char, "Mask for $char correct" );
-    is( Next::OpenSIPS::Log::_bitmask_to_mask_string( $value<<16, 16  ), $char, "Shifted mask for $char correct" );
+    is( Log::Lager::_bitmask_to_mask_string( $value, 0 ), $char, "Mask for $char correct" );
+    is( Log::Lager::_bitmask_to_mask_string( $value<<16, 16  ), $char, "Shifted mask for $char correct" );
 }
-is( Next::OpenSIPS::Log::_bitmask_to_mask_string( 0xFF, 0 ), 'FEWIDTG', "Mask for FEWIDTG correct" );
+is( Log::Lager::_bitmask_to_mask_string( 0xFF, 0 ), 'FEWIDTG', "Mask for FEWIDTG correct" );
 
 
 
 for ( @LOG_LEVELS ) {
     my ($char, $value) = @{$_}[0,2];
-    is( Next::OpenSIPS::Log::_mask_string_to_bitmask( $char ), $value, "Mask for $char correct" );
+    is( Log::Lager::_mask_string_to_bitmask( $char ), $value, "Mask for $char correct" );
 }
-is( Next::OpenSIPS::Log::_mask_string_to_bitmask( 'FEWIDTG' ), 0x7F, "Mask for FEWIDTG correct" );
+is( Log::Lager::_mask_string_to_bitmask( 'FEWIDTG' ), 0x7F, "Mask for FEWIDTG correct" );
 
 
 
