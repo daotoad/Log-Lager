@@ -1,8 +1,6 @@
-#!/site/perl/perl-5.10.1-1/bin/perl -w
+#!/usr/bin/perl
 use strict;
 use warnings;
-
-use lib '../../../../lib';
 
 use Test::More tests => 9;
 

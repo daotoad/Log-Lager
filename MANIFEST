@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST
+META.yml
+Makefile.PL
+README
+dist.ini
+lib/Log/Lager.pm
+lib/Log/Lager/CommandParser.pm
+t/01-load.t
+t/02-basic_usage.t
+t/CommandParser/01-load.t
+t/CommandParser/02-parse.t
+t/release-pod-coverage.t
+t/release-pod-syntax.t

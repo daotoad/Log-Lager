@@ -1,4 +1,7 @@
 package Log::Lager::CommandParser;
+BEGIN {
+  $Log::Lager::CommandParser::VERSION = '0.02';
+}
 use strict;
 use warnings;
 use Carp qw<croak>;
@@ -130,6 +133,9 @@ TEST:
 
 BEGIN {
     package Log::Lager::CommandResult;
+BEGIN {
+  $Log::Lager::CommandResult::VERSION = '0.02';
+}
     use overload '""' => 'as_string';
 
     sub new {
@@ -239,6 +245,9 @@ BEGIN {
 
 BEGIN {
     package Log::Lager::Mask;
+BEGIN {
+  $Log::Lager::Mask::VERSION = '0.02';
+}
     use overload '""' => 'as_string';
     use constant GROUP_PAIRS => (
         [qw/ enable  disable /],
@@ -352,6 +361,9 @@ BEGIN {
 
 BEGIN {
     package Log::Lager::Command;
+BEGIN {
+  $Log::Lager::Command::VERSION = '0.02';
+}
 
 =pod
 
@@ -532,9 +544,16 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 }
 1;
 
+=for Pod::Coverage end_state mask mask_group mask_select new parse parse_command result select_mask set_mask_to state state_table tokenize
+
+
 =head1 NAME
 
 Log::Lager::CommandParser
+
+=head1 VERSION
+
+version 0.02
 
 =head1 SYNOPSIS
 
@@ -571,6 +590,3 @@ Collects the results of parsing a command.
 =head2 Mask
 
 =head3 Attributes
-
-
-

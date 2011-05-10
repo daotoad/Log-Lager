@@ -1,21 +1,19 @@
-#!/site/perl/perl-5.10.1-1/bin/perl -w
+#!/user/bin/perl
 use strict;
 use warnings;
 
-use lib '../../../../lib';
-
 use Test::More tests => 9;
 
-use Next::OpenSIPS::Log::CommandParser 'parse_command';
+use Log::Lager::CommandParser 'parse_command';
 
-my $cp = Next::OpenSIPS::Log::CommandParser->new;
-isa_ok( $cp, 'Next::OpenSIPS::Log::CommandParser' );
+my $cp = Log::Lager::CommandParser->new;
+isa_ok( $cp, 'Log::Lager::CommandParser' );
 is( $cp->{state},      'start',   'state initialized correctly' );
 is( my $state =  $cp->state(), 'start',   'state initialized correctly' );
 is( $cp->mask_select,  'lexical', 'mask_select initialized correctly' );
 is( $cp->mask_group,   'enable',  'mask_group initialized correctly' );
 
-isa_ok( $cp->result, 'Next::OpenSIPS::Log::CommandResult' );
+isa_ok( $cp->result, 'Log::Lager::CommandResult' );
 
 my $r;
 ok( eval {
@@ -30,7 +28,7 @@ ok( eval {
      ); 1;
 }, 'Parse command w/o error '. $@ );
 
-isa_ok( $r, 'Next::OpenSIPS::Log::CommandResult');
+isa_ok( $r, 'Log::Lager::CommandResult');
 
 is( ''. parse_command("$r"), "$r", 'Round trip OK' );
 
