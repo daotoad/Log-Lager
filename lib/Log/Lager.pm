@@ -9,7 +9,7 @@ $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
 
 use Log::Lager::CommandParser qw( parse_command );
-use Data::Abrdige qw( abridge_items_recursive );
+use Data::Abridge qw( abridge_items_recursive );
 
 
 # Global configuration
