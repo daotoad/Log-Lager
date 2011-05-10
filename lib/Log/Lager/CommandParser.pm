@@ -532,6 +532,9 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 }
 1;
 
+=for Pod::Coverage end_state mask mask_group mask_select new parse parse_command result select_mask set_mask_to state state_table tokenize
+
+
 =head1 NAME
 
 Log::Lager::CommandParser

@@ -82,7 +82,6 @@ _parse_commands( [0,0], 'base enable', $ENV{OPENSIPSLOG} )
 
 
 
-
 # Bitmask manipulation
 sub _bitmask_to_mask_string {
     my $bitmask = shift;
@@ -503,6 +502,7 @@ sub import {
 # Non-standard unimport
 # Allows for restricted command set.
 # Used to disable log levels in a particular lexical scope.
+
 sub unimport {
     shift;
     my @commands = @_;
@@ -559,7 +559,14 @@ sub log_level {
 
 1;
 
+
+
 __END__
+
+
+=for Pod::Coverage unimport load_config_file
+
+
 
 =head1 NAME
 
@@ -871,6 +878,8 @@ Any changes to the logging level are applied to the default logging level.
 
 
 =head3 Runtime modification
+
+The C<load_config_file> function lets you load a specific config file.  If no logfile is specified, the last file chosen will be checked for changes.  If no file is ever specified, then this function acts as a noop.
 
 The C<apply_command> function allows any arbitrary command to be executed at runtime.
 
