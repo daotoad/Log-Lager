@@ -303,12 +303,38 @@ sub _handle_message {
 
     my $formatter = $pretty_bit ? \&_pretty_formatter : \&_compact_formatter;
 
+    # Get raw messages from either callback or @_
     my @messages;
     {   no warnings 'uninitialized';
 
         @messages = @_ == 1 && reftype($_[0]) eq reftype(\&_timestamp) ? $_->() : @_;
     }
-    my $message = $formatter->($MASK_CHARS{$level}[FUNCTION], @messages );
+
+    # Is @messages a single entry of type Log::Lager::TypedMessage? - 
+    my $type = undef;
+    if( eval {
+        @messages == 1
+        && $messages[0]->isa('Log::Lager::TypedMessage')
+    }) {
+        my ($type, @messages) = @{$messages[0]};
+    }
+
+    if( $type ne 'NAKED' ) {
+        # Build and insert header data here.
+        my ($package, $sub) = (caller(1))[0,3];
+        my @header = (
+             _timestamp(),
+             $$,
+             $MASK_CHARS{$level},
+             _threadid(),
+             $type,
+             $package,
+             $sub,
+        );
+        unshift @messages, \@header;
+    }
+
+    my $message = $formatter->(@messages );
 
     $message = $stack_bit ? Carp::longmess( $message ) : "$message\n";
 
@@ -386,8 +412,7 @@ sub _general_formatter {
     my $json      = shift;
     my $log_level = shift;
 
-    my $ts = _timestamp();
-    my $message = $json->encode( [ $ts, $$, $log_level, abridge_items_recursive(@_) ] );
+    my $message = $json->encode( [ abridge_items_recursive(@_) ] );
 
     return $message;
 }
@@ -396,6 +421,15 @@ sub _general_formatter {
 sub _compact_formatter { _general_formatter( _get_compact_json(), @_ ) }
 sub _pretty_formatter  { _general_formatter( _get_pretty_json(),  @_ ) }
 
+
+
+sub _threadid {
+    $tcfg = exists $INC{threads}; 
+
+    return 0 unless $tcfg;
+
+    return threads->tid();
+}
 
 # === Logging configuration functions ===
 # These functions allow access to logging configuration.
@@ -608,7 +642,7 @@ and manipulation of log output.
 
 Log output is formatted as JSON arrays:
 
-    [ <TIMESTAMP>, <PID>, <LOG LEVEL>, <USER INPUT>, ... ]
+    [ [<TIMESTAMP>, <PID>, <LOG LEVEL>, <THREAD ID>, <TYPE>, <PACKAGE>, <SUB NAME> ], <USER INPUT>, ... ]
 
 Timestamps are in UTC time, with an ISO 8601 style format.
 
