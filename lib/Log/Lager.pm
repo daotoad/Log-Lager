@@ -11,6 +11,8 @@ use Scalar::Util qw(reftype);
 use Log::Lager::CommandParser qw( parse_command );
 use Data::Abridge qw( abridge_items_recursive );
 
+use Sys::Hostname;
+my $HOSTNAME = hostname();
 
 # Global configuration
 # === Global mask variables ===
@@ -324,10 +326,13 @@ sub _handle_message {
         my ($package, $sub) = (caller(1))[0,3];
         my @header = (
              _timestamp(),
-             $$,
-             $MASK_CHARS{$level},
-             _threadid(),
              $type,
+             $MASK_CHARS{$level},
+             $HOSTNAME,
+             $0,
+             $$,
+             _threadid(),
+             $Log::UnitofWork::CURRENT_UNIT,
              $package,
              $sub,
         );
