@@ -441,7 +441,6 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
         $cp->mask_select($_);
         return unless /lexical|base/;
 
-        print "\n\nMask selected: $_\n";
         $cp->select_mask;
         return;
     }
@@ -456,15 +455,13 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
     sub match_lex_control { /lexon|lexoff/ }
     sub config_lex {
         my $cp = shift;
-        print "Setting $_\n";
+
         $cp->result->lexicals_enabled($_ eq 'lexon' ? 1 : 0 );
         return;
     }
 
     sub match_output_control { /stderr|syslog|file/ }
     sub select_output_mode {
-        print "Set output to $_\n";
-
         my $cp = shift;
         $cp->result->output($_);
         return;
@@ -479,13 +476,11 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
     sub match_package_or_sub { /^(?:\w|::)+/ }
     sub select_sub_mask {
-        print "select mask for sub $_\n";
         my $cp = shift;
         $cp->select_mask($_);
         return;
     }
     sub select_package_mask {
-        print "select mask for package $_\n";
         my $cp = shift;
         $cp->select_mask($_);
         return;
@@ -493,7 +488,6 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
     sub match_mask_group { /^($Log::Lager::Mask::GROUP_REGEX)$/ }
     sub select_mask_group {
-        print "selected mask group: $_\n";
         my $cp = shift;
         $cp->mask_group($_);
         return;
@@ -501,7 +495,6 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
     sub match_mask_chars { /^[$Log::Lager::Mask::MASK_REGEX]+$/ }
     sub set_mask {
-        print "set mask: $_\n";
         my $cp = shift;
         $cp->set_mask_to($_);
         return;
@@ -509,21 +502,18 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
     sub match_filename { /^[\w.\/-]+$/ }
     sub set_file_out {
-        print "Set file output to $_\n";
         my $cp = shift;
         $cp->result->file_name($_);
         return;
     }
 
     sub set_syslog_ident {
-        print "Set syslog ident to $_\n";
         my $cp = shift;
         $cp->result->syslog_identity( $_ );
         return;
     }
 
     sub set_syslog_facility {
-        print "Set syslog facility to $_\n";
         my $cp = shift;
         $cp->result->syslog_facility( $_ );
         return;
