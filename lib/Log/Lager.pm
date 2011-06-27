@@ -1,12 +1,13 @@
 package Log::Lager;
 
-use Data::Dumper ();
+use Data::Dumper;
 
 use strict;
 use warnings;
 use Carp qw( croak ); 
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
+use JSON::XS;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Data::Abridge qw( abridge_items_recursive );
@@ -79,8 +80,8 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 # === Initialize masks  ===
 my @DEFAULT = qw( base enable FEW lexon stderr );
 _parse_commands( [0,0], @DEFAULT );
-_parse_commands( [0,0], 'base enable', $ENV{OPENSIPSLOG} )
-    if defined $ENV{OPENSIPSLOG};
+_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
+    if defined $ENV{LOGLAGER};
 
 
 
@@ -318,16 +319,16 @@ sub _handle_message {
         @messages == 1
         && $messages[0]->isa('Log::Lager::TypedMessage')
     }) {
-        my ($type, @messages) = @{$messages[0]};
+        ($type, @messages) = @{$messages[0]};
     }
 
-    if( $type ne 'NAKED' ) {
+    unless( defined $type and $type eq 'NAKED' ) {
         # Build and insert header data here.
         my ($package, $sub) = (caller(1))[0,3];
         my @header = (
              _timestamp(),
              $type,
-             $MASK_CHARS{$level},
+             $MASK_CHARS{$level}[FUNCTION],
              $HOSTNAME,
              $0,
              $$,
@@ -341,7 +342,7 @@ sub _handle_message {
 
     my $message = $formatter->(@messages );
 
-    $message = $stack_bit ? Carp::longmess( $message ) : "$message\n";
+    $message = $stack_bit ? Carp::longmess( $message ) : "$message";
 
     my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
     $emitter->($level, $message);
@@ -415,9 +416,8 @@ sub _timestamp {
 # and applies one to the other.
 sub _general_formatter {
     my $json      = shift;
-    my $log_level = shift;
 
-    my $message = $json->encode( [ abridge_items_recursive(@_) ] );
+    my $message = $json->encode(  abridge_items_recursive(@_)  );
 
     return $message;
 }
@@ -429,7 +429,7 @@ sub _pretty_formatter  { _general_formatter( _get_pretty_json(),  @_ ) }
 
 
 sub _threadid {
-    $tcfg = exists $INC{threads}; 
+    my $tcfg = exists $INC{threads}; 
 
     return 0 unless $tcfg;
 
@@ -529,7 +529,7 @@ sub import {
             $^H{'Log::Lager::Log_enable'},
             $^H{'Log::Lager::Log_disable'}
         ];
-        $mask = _parse_commands( $mask, @_ ) if @_;
+        $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
 
         $^H{'Log::Lager::Log_enable'}  = $mask->[0] // 0;
         $^H{'Log::Lager::Log_disable'} = $mask->[1] // 0;
@@ -908,10 +908,10 @@ Set the C<OPENSIPSLOG> environment variable to override B<ALL> lexical settings 
 the entire script.
 
 Assumes a leading C<enable base > at the start of the the command string:
-C<OPENSIPSLOG=FWEG foo.pl> is identical to C<OPENSIPSLOG='enable base FWEG' foo.pl>.
+C<LOGLAGER=FWEG foo.pl> is identical to C<LOGLAGER='enable base FWEG' foo.pl>.
 
 Use normal command syntax.  Operates exactly as a program wide, unoverridable
-C<use Log::Lager $ENV{OPENSIPSLOG}>.
+C<use Log::Lager $ENV{LOGLAGER}>.
 
 Any changes to the logging level are applied to the default logging level.
 

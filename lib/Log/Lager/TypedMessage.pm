@@ -9,8 +9,10 @@ sub new {
       my $type = shift;
       my @messages = @_;
 
-      return bless [ $type, \@messages ], $class;
+      return bless [ $type, @messages ], $class;
 }
+
+1;
 
 
 =head1 NAME
