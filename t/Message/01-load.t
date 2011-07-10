@@ -19,5 +19,5 @@ my $m = Log::Lager::Message->new(
    context  => 0,
 );
 
-use Data::Dumper;
-print Dumper $m;
+isa_ok( $m, 'Log::Lager::Message' );
+
