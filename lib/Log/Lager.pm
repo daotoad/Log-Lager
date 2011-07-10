@@ -10,7 +10,7 @@ use Scalar::Util qw(reftype);
 use JSON::XS;
 
 use Log::Lager::CommandParser qw( parse_command );
-use Data::Abridge qw( abridge_items_recursive );
+use Log::Lager::Message;
 
 use Sys::Hostname;
 my $HOSTNAME = hostname();
@@ -36,6 +36,7 @@ my $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 my $PREVIOUS_CONFIG_FILE = '';
 my $CONFIG_LOAD_TIME = 0;
+my $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
 # === Configure Log Levels ===
@@ -313,36 +314,27 @@ sub _handle_message {
         @messages = @_ == 1 && reftype($_[0]) eq reftype(\&_timestamp) ? $_->() : @_;
     }
 
-    # Is @messages a single entry of type Log::Lager::TypedMessage? - 
-    my $type = undef;
+    my $msg;
+    # Is @messages a single entry of type Log::Lager::Message? - 
     if( eval {
         @messages == 1
         && $messages[0]->isa('Log::Lager::TypedMessage')
     }) {
-        ($type, @messages) = @{$messages[0]};
+        $msg = $messages[0];
     }
-
-    unless( defined $type and $type eq 'NAKED' ) {
-        # Build and insert header data here.
-        my ($package, $sub) = (caller(1))[0,3];
-        my @header = (
-             _timestamp(),
-             $type,
-             $MASK_CHARS{$level}[FUNCTION],
-             $HOSTNAME,
-             $0,
-             $$,
-             _threadid(),
-             $Log::UnitofWork::CURRENT_UNIT,
-             $package,
-             $sub,
+    else {
+        $msg = $DEFAULT_MESSAGE_CLASS->new(
+            context         => 1,
+            loglevel        => $level,
+            message         => \@messages,
+            want_stack      => $stack_bit,
+            expanded_format => $pretty_bit,
         );
-        unshift @messages, \@header;
     }
 
-    my $message = $formatter->(@messages );
+    my $message = $msg->format;
 
-    $message = $stack_bit ? Carp::longmess( $message ) : "$message";
+    #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
 
     my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
     $emitter->($level, $message);
@@ -388,43 +380,6 @@ sub _timestamp {
     $mon++;
     return sprintf "%04d-%02d-%02d %02d:%02d:%02d Z", $year, $mon, $mday, $hour, $min, $sec;
 }
-
-# Create and access some JSON::XS objects for the formatters.
-{   my $json;
-
-    sub _get_compact_json {
-        unless( $json ) {
-            $json = JSON::XS->new()
-                or die "Can't create JSON processor";
-            $json->ascii(1)->indent(0)->space_after(1)->relaxed(0)->canonical(1);
-        }
-        return $json;
-    }
-}
-{   my $json;
-    sub _get_pretty_json {
-        unless( $json ) {
-            $json = JSON::XS->new()
-                or die "Can't create JSON processor";
-            $json->indent(2)->space_after(1)->relaxed(0)->canonical(1);
-        }
-        return $json;
-    }
-}
-
-# Generic formatter that takes a configured JSON object and a data structure
-# and applies one to the other.
-sub _general_formatter {
-    my $json      = shift;
-
-    my $message = $json->encode(  abridge_items_recursive(@_)  );
-
-    return $message;
-}
-
-# Actual format routines
-sub _compact_formatter { _general_formatter( _get_compact_json(), @_ ) }
-sub _pretty_formatter  { _general_formatter( _get_pretty_json(),  @_ ) }
 
 
 
