@@ -1,5 +1,10 @@
 Log-Lager Changes:
 
+Restructured header to use a separate array reference.
+Added support for extraction of named type information in header.
+
+Added TypedMessage support.
+Changes to headers to meet evolving work standards.
 
 0.02:  2011-05-09
 Initial "de-workified" release.

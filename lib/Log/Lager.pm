@@ -1,16 +1,19 @@
 package Log::Lager;
 
-use Data::Dumper ();
+use Data::Dumper;
 
 use strict;
 use warnings;
 use Carp qw( croak ); 
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
+use JSON::XS;
 
 use Log::Lager::CommandParser qw( parse_command );
-use Data::Abridge qw( abridge_items_recursive );
+use Log::Lager::Message;
 
+use Sys::Hostname;
+my $HOSTNAME = hostname();
 
 # Global configuration
 # === Global mask variables ===
@@ -33,6 +36,7 @@ my $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 my $PREVIOUS_CONFIG_FILE = '';
 my $CONFIG_LOAD_TIME = 0;
+my $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
 # === Configure Log Levels ===
@@ -77,8 +81,8 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 # === Initialize masks  ===
 my @DEFAULT = qw( base enable FEW lexon stderr );
 _parse_commands( [0,0], @DEFAULT );
-_parse_commands( [0,0], 'base enable', $ENV{OPENSIPSLOG} )
-    if defined $ENV{OPENSIPSLOG};
+_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
+    if defined $ENV{LOGLAGER};
 
 
 
@@ -186,6 +190,24 @@ sub _configure_output {
 
 }
 
+sub _configure_message_object {
+    my $object_pkg = shift;
+
+    return unless defined $object_pkg;
+    return unless length $object_pkg;
+    print "MOO $object_pkg\n\n";
+
+    eval "require $object_pkg;"
+       . "$object_pkg->isa('Log::Lager::Message');"
+        or do {
+            warn "Error loading $object_pkg: $@\n";
+            return;
+        };
+
+    
+    $DEFAULT_MESSAGE_CLASS = $object_pkg;
+}
+
 sub _parse_commands {
     my $masks = shift;
     my @commands = @_;
@@ -249,9 +271,11 @@ sub _parse_commands {
     my $lexon = $result->lexicals_enabled;
     $ENABLE_LEXICAL = $lexon if defined $lexon;
 
+    my $default_message = $result->message_object;
+    _configure_message_object( $default_message );
+
     return $lex_masks;
 }
-
 
 
 sub _get_bits {
@@ -303,14 +327,34 @@ sub _handle_message {
 
     my $formatter = $pretty_bit ? \&_pretty_formatter : \&_compact_formatter;
 
+    # Get raw messages from either callback or @_
     my @messages;
     {   no warnings 'uninitialized';
 
         @messages = @_ == 1 && reftype($_[0]) eq reftype(\&_timestamp) ? $_->() : @_;
     }
-    my $message = $formatter->($MASK_CHARS{$level}[FUNCTION], @messages );
 
-    $message = $stack_bit ? Carp::longmess( $message ) : "$message\n";
+    my $msg;
+    # Is @messages a single entry of type Log::Lager::Message? - 
+    if( eval {
+        @messages == 1
+        && $messages[0]->isa('Log::Lager::TypedMessage')
+    }) {
+        $msg = $messages[0];
+    }
+    else {
+        $msg = $DEFAULT_MESSAGE_CLASS->new(
+            context         => 1,
+            loglevel        => $level,
+            message         => \@messages,
+            want_stack      => $stack_bit,
+            expanded_format => $pretty_bit,
+        );
+    }
+
+    my $message = $msg->format;
+
+    #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
 
     my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
     $emitter->($level, $message);
@@ -357,45 +401,15 @@ sub _timestamp {
     return sprintf "%04d-%02d-%02d %02d:%02d:%02d Z", $year, $mon, $mday, $hour, $min, $sec;
 }
 
-# Create and access some JSON::XS objects for the formatters.
-{   my $json;
 
-    sub _get_compact_json {
-        unless( $json ) {
-            $json = JSON::XS->new()
-                or die "Can't create JSON processor";
-            $json->ascii(1)->indent(0)->space_after(1)->relaxed(0)->canonical(1);
-        }
-        return $json;
-    }
+
+sub _threadid {
+    my $tcfg = exists $INC{threads}; 
+
+    return 0 unless $tcfg;
+
+    return threads->tid();
 }
-{   my $json;
-    sub _get_pretty_json {
-        unless( $json ) {
-            $json = JSON::XS->new()
-                or die "Can't create JSON processor";
-            $json->indent(2)->space_after(1)->relaxed(0)->canonical(1);
-        }
-        return $json;
-    }
-}
-
-# Generic formatter that takes a configured JSON object and a data structure
-# and applies one to the other.
-sub _general_formatter {
-    my $json      = shift;
-    my $log_level = shift;
-
-    my $ts = _timestamp();
-    my $message = $json->encode( [ $ts, $$, $log_level, abridge_items_recursive(@_) ] );
-
-    return $message;
-}
-
-# Actual format routines
-sub _compact_formatter { _general_formatter( _get_compact_json(), @_ ) }
-sub _pretty_formatter  { _general_formatter( _get_pretty_json(),  @_ ) }
-
 
 # === Logging configuration functions ===
 # These functions allow access to logging configuration.
@@ -490,7 +504,7 @@ sub import {
             $^H{'Log::Lager::Log_enable'},
             $^H{'Log::Lager::Log_disable'}
         ];
-        $mask = _parse_commands( $mask, @_ ) if @_;
+        $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
 
         $^H{'Log::Lager::Log_enable'}  = $mask->[0] // 0;
         $^H{'Log::Lager::Log_disable'} = $mask->[1] // 0;
@@ -608,7 +622,7 @@ and manipulation of log output.
 
 Log output is formatted as JSON arrays:
 
-    [ <TIMESTAMP>, <PID>, <LOG LEVEL>, <USER INPUT>, ... ]
+    [ [<TIMESTAMP>, <PID>, <LOG LEVEL>, <THREAD ID>, <TYPE>, <PACKAGE>, <SUB NAME> ], <USER INPUT>, ... ]
 
 Timestamps are in UTC time, with an ISO 8601 style format.
 
@@ -869,10 +883,10 @@ Set the C<OPENSIPSLOG> environment variable to override B<ALL> lexical settings 
 the entire script.
 
 Assumes a leading C<enable base > at the start of the the command string:
-C<OPENSIPSLOG=FWEG foo.pl> is identical to C<OPENSIPSLOG='enable base FWEG' foo.pl>.
+C<LOGLAGER=FWEG foo.pl> is identical to C<LOGLAGER='enable base FWEG' foo.pl>.
 
 Use normal command syntax.  Operates exactly as a program wide, unoverridable
-C<use Log::Lager $ENV{OPENSIPSLOG}>.
+C<use Log::Lager $ENV{LOGLAGER}>.
 
 Any changes to the logging level are applied to the default logging level.
 
