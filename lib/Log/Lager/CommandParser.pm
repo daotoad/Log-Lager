@@ -118,7 +118,7 @@ TEST:
 
         }
 
-        croak "No match for '$next' in  $state";
+        croak "No match for '$next' in  $state - @_";
         $self->state(undef);
     }
 
@@ -145,6 +145,7 @@ BEGIN {
             file_name        => undef,
             output           => undef,
             lexicals_enabled => undef,
+            message_object   => undef,
         };
 
         bless $self, $class;
@@ -159,6 +160,7 @@ BEGIN {
     sub syslog_identity  { my $self = shift; $self->{syslog_identity}  = shift if @_; $self->{syslog_identity}  }
     sub file_name        { my $self = shift; $self->{file_name} = shift if @_;        $self->{file_name}        }
     sub output           { my $self = shift; $self->{output} = shift if @_;           $self->{output}           }
+    sub message_object   { my $self = shift; $self->{message_object} = shift if @_;   $self->{message_object} }
 
     sub package_names {
         my $self = shift;
@@ -231,7 +233,14 @@ BEGIN {
 
         my $lexon_string = $self->lexicals_enabled ? 'lexon' : 'lexoff';
 
-        my $string = join ' ', grep length, $mask_string, $out_string, $lexon_string;
+        my $message_object = $self->message_object;
+        $message_object = 'Log::Lager::Message' 
+            unless defined $message_object;
+        
+        $message_object = "message $message_object";
+
+        my $string = join ' ', grep length, $mask_string,  $out_string, 
+                                            $lexon_string, $message_object;
 
         return $string;
     }
@@ -356,7 +365,7 @@ BEGIN {
 =pod
 
 command_string -> command_group ( \s* command_group )
-command_group  -> ( mask_control | lex_control | output_control )
+command_group  -> ( mask_control | lex_control | output_control | message_config )
 mask_control   -> mask_selector ( \s mask_group ( \s mask_set )* )*
 mask_selector  -> ( lexical | base | package \s  name | sub \s  name )
 mask_group     -> ( enable | disable | pretty | compact | stack | nostack | fatal | nonfatal )
@@ -367,6 +376,7 @@ output_control -> ( stderr | file_spec | syslog_spec )
 file_spec      -> file \s+ file_name \s+ ( on|off)
 file_name      -> [\w\/]
 syslog_spec    -> syslog \s+ (syslog_conf | off )
+message_config -> message \s+ (Some::Module::Name)
 
 =cut
 
@@ -377,8 +387,8 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 # condition, the state action, and the next state.
 #
 # The match condition may be a code ref or undefined.  If undefined, the match
-# always succeed.  Otherwise, the code reference is called and the return
-# value is eevaluated in boolean context.  On a true result, testing stops,
+# always succeeds.  Otherwise, the code reference is called and the return
+# value is evaluated in boolean context.  On a true result, testing stops,
 # and the other values in the test definition are inspected and acted upon.
 # On a false result we move to the next test definition.
 #
@@ -390,11 +400,12 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
     our %STATE_TABLE = (
     #   name       # Array of match/action/transition tuples
         start => [
-            # Match Condition       Action                 Next State
-            # If true               do this                and go here
-            [ \&match_mask_selector,  \&select_bl_mask,      \&get_mask_state       ],
-            [ \&match_lex_control,    \&config_lex,          'start'                ],
-            [ \&match_output_control, \&select_output_mode,  \&get_output_state     ],
+           # Match Condition         Action                   Next State
+           # If true                 do this                  and go here
+           [ \&match_mask_selector,  \&select_bl_mask,        \&get_mask_state       ],
+           [ \&match_lex_control,    \&config_lex,            'start'                ],
+           [ \&match_output_control, \&select_output_mode,    \&get_output_state     ],
+           [ \&match_message_config, \&select_message_config, 'want_message_package' ],
         ],
 
         want_filename => [
@@ -415,6 +426,10 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
 
         want_mask_package => [
             [ \&match_package_or_sub, \&select_package_mask, 'mask_selected'        ],
+        ],
+
+        want_message_package => [
+            [ \&match_message_package, \&set_message_package, 'start'        ],
         ],
 
         mask_selected => [
@@ -480,6 +495,7 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
         $cp->select_mask($_);
         return;
     }
+
     sub select_package_mask {
         my $cp = shift;
         $cp->select_mask($_);
@@ -516,6 +532,15 @@ syslog_spec    -> syslog \s+ (syslog_conf | off )
     sub set_syslog_facility {
         my $cp = shift;
         $cp->result->syslog_facility( $_ );
+        return;
+    }
+
+    sub match_message_config { /^message$/ }
+    sub match_message_package { /^(?:\w+|::)+$/ }
+    sub select_message_config { };
+    sub set_message_package {
+        my $cp = shift;
+        $cp->result->message_object( $_ );
         return;
     }
 

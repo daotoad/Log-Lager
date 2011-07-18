@@ -190,6 +190,24 @@ sub _configure_output {
 
 }
 
+sub _configure_message_object {
+    my $object_pkg = shift;
+
+    return unless defined $object_pkg;
+    return unless length $object_pkg;
+    print "MOO $object_pkg\n\n";
+
+    eval "require $object_pkg;"
+       . "$object_pkg->isa('Log::Lager::Message');"
+        or do {
+            warn "Error loading $object_pkg: $@\n";
+            return;
+        };
+
+    
+    $DEFAULT_MESSAGE_CLASS = $object_pkg;
+}
+
 sub _parse_commands {
     my $masks = shift;
     my @commands = @_;
@@ -253,9 +271,11 @@ sub _parse_commands {
     my $lexon = $result->lexicals_enabled;
     $ENABLE_LEXICAL = $lexon if defined $lexon;
 
+    my $default_message = $result->message_object;
+    _configure_message_object( $default_message );
+
     return $lex_masks;
 }
-
 
 
 sub _get_bits {

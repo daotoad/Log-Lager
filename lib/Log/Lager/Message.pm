@@ -165,14 +165,14 @@ sub _general_formatter {
              hostname
              executable
              process_id
-             threadid
+             thread_id
              context_id
              package
              subroutine
         /
     ];
 
-    my $message = $json->encode(  abridge_items_recursive( $header, @{$self->{messages}}  )  );
+    my $message = $json->encode(  abridge_items_recursive( $header, @{$self->{message}}  )  );
 
     return $message;
 }
