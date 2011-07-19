@@ -46,11 +46,10 @@ sub _init {
     my $self = shift;
     my %arg = @_;
 
-    $self->{loglevel} = $arg{loglevel}
-        or croak "Attribute loglevel required for Message object.";
-
     $self->{message} = $arg{message} 
         or croak "Attribute message required for Message object.";
+
+    $self->{loglevel}    = $arg{loglevel};
 
     $self->{hostname}    = $arg{hostname}   || $HOSTNAME;
     $self->{executable}  = $arg{executable} || $0;
@@ -108,6 +107,7 @@ sub _adjust_call_stack_level {
 
     my $offset = 0;
     $offset++ while caller($offset)->isa('Log::Lager::Message');
+    $offset++ while caller($offset) eq ('Log::Lager');
 
     return $level + $offset;
 }
@@ -121,12 +121,14 @@ sub _fetch_callstack {
 sub _fetch_caller_info {
     my $self  = shift;
     my $level = shift;
-    
+
     my @info = caller($level);
+    my ($file, $line, $pkg) = @info[1, 2, 0];
+    @info = caller($level+1);
+    my $sub = $info[3];
 
-    my ($file, $line, $pkg, $sub) = @info[1, 2, 3, 0];
 
-    return ( $file, $line, $sub, $pkg );
+    return ( $file, $line, $pkg, $sub );
 }
 
 sub _thread_id {

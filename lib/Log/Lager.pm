@@ -77,7 +77,7 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-my @DEFAULT = qw( base enable FEW lexon stderr );
+my @DEFAULT = qw( base enable FEW fatal F lexon stderr );
 _parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
@@ -328,14 +328,14 @@ sub _handle_message {
     my @messages;
     {   no warnings 'uninitialized';
 
-        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_->() : @_;
+        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_[0]->() : @_;
     }
 
     my $msg;
     # Is @messages a single entry of type Log::Lager::Message? - 
     if( eval {
         @messages == 1
-        && $messages[0]->isa('Log::Lager::TypedMessage')
+        && $messages[0]->isa('Log::Lager::Message')
     }) {
         $msg = $messages[0];
         $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] ) 
@@ -343,7 +343,7 @@ sub _handle_message {
     }
     else {
         $msg = $DEFAULT_MESSAGE_CLASS->new(
-            context         => 3,
+            context         => 0,
             loglevel        => $MASK_CHARS{$level}[FUNCTION],
             message         => \@messages,
             want_stack      => $stack_bit,
@@ -387,12 +387,6 @@ sub _output_file {
     $OUTPUT_FILE_HANDLE->printflush( @_ );
     return;
 }
-
-
-# === Message Formatting ===
-# What is the output going to look like?
-
-
 
 
 
@@ -580,25 +574,36 @@ parsable log format.
 The goal is to provide an easy to use logging facility that meets developer
 and production needs.
 
-    # Enable standard logging levels: FATAL ERROR WARN.
+    # Enable standard logging levels: FATAL ERROR WARN. With FATAL being fatal.
     use Log::Lager;
 
-    INFO('I Oh');  # Nothing happens, INFO is OFF
+    INFO('I is off');  # Nothing happens, INFO is OFF
 
     use Log::Lager nonfatal => 'F', enable => 'I';  # FATAL events are no longer fatal.
 
     FATAL('Still kicking');
-    INFO('I Oh');  # Nothing happens, INFO is OFF
+    INFO('I is ON');  # Log an entry.
 
     {   no Log::Lager 'I';   # Disable INFO
 
-        INFO('I Oh NO');
+        INFO('Info is OFF'); # If run with lexoff, this will log.
     }
-    INFO('I Oh');  # Nothing happens, INFO is OFF
+    INFO('Working again');  # INFO is back on
 
     # Make FATAL fatal again.
     use Log::Lager fatal => 'F';
-    FATAL('Oh noes');
+    FATAL('Oh noes');  # Log an error and throw an exception.
+
+    
+    # Get current settings:
+    my $settings = Log::Lager::log_level();
+
+    # Load from a config file:
+    Log::Lager::load_config_file('path/to/file');
+
+    # Configure explicitly.
+    Log::Lager::apply_command('enable D pretty D stack D');
+
 
 =head2 Log Format
 
