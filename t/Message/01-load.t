@@ -8,8 +8,8 @@ use_ok( 'Log::Lager::Message' )
 
 can_ok( 'Log::Lager::Message', qw/ new _init
     loglevel    message    hostname    executable
-    process_id  thread_id  type        timestamp 
-    context_id  callstack  subroutine  package
+    process_id  thread_id  timestamp   file_name line_number
+    callstack  subroutine  package
 / );
 
 

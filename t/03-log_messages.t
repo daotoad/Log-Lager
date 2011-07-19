@@ -2,16 +2,16 @@
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 43;
 
 use File::Temp;
 use JSON;
 
 my @TEST_SPECS  = (
-    [ 'use FEWTDIG' => [
+    [ 'use Log::Lager "FEWTDIG nonfatal FEWTDIG nostack FEWTDIG"' => [
             [ FATAL   => { enabled => 1, fatal => 0, stack_trace => 0 } ],
             [ ERROR   => { enabled => 1, fatal => 0, stack_trace => 0 } ],
-            [ WARNING => { enabled => 1, fatal => 0, stack_trace => 0 } ],
+            [ WARN    => { enabled => 1, fatal => 0, stack_trace => 0 } ],
             [ TRACE   => { enabled => 1, fatal => 0, stack_trace => 0 } ],
             [ DEBUG   => { enabled => 1, fatal => 0, stack_trace => 0 } ],
             [ INFO    => { enabled => 1, fatal => 0, stack_trace => 0 } ],
@@ -19,10 +19,10 @@ my @TEST_SPECS  = (
         ],
     ],
 
-    [ 'use FEWTDIG stack FEWTDIG' => [
+    [ 'use Log::Lager "FEWTDIG nonfatal FEWTDIG pretty FEWTDIG"' => [
             [ FATAL   => { enabled => 1, fatal => 0, stack_trace => 1 } ],
             [ ERROR   => { enabled => 1, fatal => 0, stack_trace => 1 } ],
-            [ WARNING => { enabled => 1, fatal => 0, stack_trace => 1 } ],
+            [ WARN    => { enabled => 1, fatal => 0, stack_trace => 1 } ],
             [ TRACE   => { enabled => 1, fatal => 0, stack_trace => 1 } ],
             [ DEBUG   => { enabled => 1, fatal => 0, stack_trace => 1 } ],
             [ INFO    => { enabled => 1, fatal => 0, stack_trace => 1 } ],
@@ -30,7 +30,19 @@ my @TEST_SPECS  = (
         ],
     ],
 
+    [ 'use Log::Lager "FEWTDIG fatal FEWTDIG pretty FEWTDIG"' => [
+            [ FATAL   => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ ERROR   => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ WARN    => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ TRACE   => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ DEBUG   => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ INFO    => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+            [ GUTS    => { enabled => 1, fatal => 1, stack_trace => 1 } ],
+        ],
+    ],
 );
+
+
 
 use_ok( 'Log::Lager' ) 
     or BAIL_OUT('Error loading Log::Lager');
@@ -45,7 +57,6 @@ for my $set_spec ( @TEST_SPECS ) {
         check_results( $result, $expect );
     }
 
-    my $foo = <>;
 }
 
 
@@ -53,31 +64,45 @@ for my $set_spec ( @TEST_SPECS ) {
 sub exec_loglevel {
     my $lexical_cmd = shift;
     my $level = shift;
+
+    my $path = 't/logfile';
+
+    {   open my $fh, '>', $path;
+        $fh->printflush("BEGIN MESSAGE\n");
+    }
     
-    my $fh = File::Temp->new( DIR => "t" );
-    my $path = $fh->filename;
-
-    diag( $path );
-
     my $cut = <<"END";
+    package _My_::Test;
     $lexical_cmd;
-    use Log::Lager file $path;
+    use Log::Lager 'file $path';
+    use Log::Lager 'stack FEWTDIG';
 
-    
+    log_me();
 
-    $fh->printflush("BEGIN MESSAGE\n");
-    eval { $level 'Message'; 1 }
-    or $fh->printflush("Exception thrown\n");
-    $fh->printflush("END MESSAGE\n");
-    
+    sub log_me {
+        $level 'Message'; 
+    }
+
     1;
+    
 END
 
-    eval $cut;
+    print "$cut";
 
-    $fh->seek(0, 0);
+    eval $cut or do { 
+        open my $fh, '>>', $path;
+        $fh->printflush("Exception thrown - $@\n");
+    };
 
-    my @result = $fh->getlines;
+    {   open my $fh, '>>', $path;
+        $fh->printflush("END MESSAGE\n");
+    }
+
+    my @result = do {
+        open my $fh, '<', $path;
+        $fh->getlines;
+    };
+
 
     return \@result;
 }
@@ -96,7 +121,7 @@ sub check_results {
     my @except = grep /Exception thrown/,  @$results;
 
     my $count = !$expect->{enabled} ? 0
-              : $expect->{fatal}    ? 1
+              :  $expect->{fatal}   ? 1
               :                       0;
     is( scalar @except, $count, 'Exceptions as configured.' );
     

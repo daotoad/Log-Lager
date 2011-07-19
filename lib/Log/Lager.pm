@@ -12,8 +12,6 @@ use JSON::XS;
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
 
-use Sys::Hostname;
-my $HOSTNAME = hostname();
 
 # Global configuration
 # === Global mask variables ===
@@ -174,9 +172,9 @@ sub _configure_output {
     if( $OUTPUT_TARGET eq 'stderr' ) {
         $OUTPUT_FUNCTION = \&_output_stderr;
     }
-    elsif( $OUTPUT_TARGET eq 'file_name' ) {
+    elsif( $OUTPUT_TARGET eq 'file' ) {
         require IO::File;
-        $OUTPUT_FILE_HANDLE = IO::File->open( $OUTPUT_FILE_NAME, '>>' )
+        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>' )
             or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
 
         $OUTPUT_FUNCTION = $OUTPUT_FILE_HANDLE ? \&_output_file : \&_output_stderr;
@@ -195,7 +193,6 @@ sub _configure_message_object {
 
     return unless defined $object_pkg;
     return unless length $object_pkg;
-    print "MOO $object_pkg\n\n";
 
     eval "require $object_pkg;"
        . "$object_pkg->isa('Log::Lager::Message');"
@@ -331,7 +328,7 @@ sub _handle_message {
     my @messages;
     {   no warnings 'uninitialized';
 
-        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&_timestamp) ? $_->() : @_;
+        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_->() : @_;
     }
 
     my $msg;
@@ -341,11 +338,13 @@ sub _handle_message {
         && $messages[0]->isa('Log::Lager::TypedMessage')
     }) {
         $msg = $messages[0];
+        $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] ) 
+            unless $msg->loglevel;
     }
     else {
         $msg = $DEFAULT_MESSAGE_CLASS->new(
-            context         => 1,
-            loglevel        => $level,
+            context         => 3,
+            loglevel        => $MASK_CHARS{$level}[FUNCTION],
             message         => \@messages,
             want_stack      => $stack_bit,
             expanded_format => $pretty_bit,
@@ -383,33 +382,19 @@ sub _output_syslog {
 }
 
 sub _output_file {
+    shift;
     $OUTPUT_FILE_HANDLE or return &_output_stderr;
-    $OUTPUT_FILE_HANDLE->print( @_ );
+    $OUTPUT_FILE_HANDLE->printflush( @_ );
     return;
 }
-
 
 
 # === Message Formatting ===
 # What is the output going to look like?
 
-# Make a timestamp, the same way every time.
-sub _timestamp {
-    my ( $sec, $min, $hour, $mday, $mon, $year ) = gmtime;
-    $year += 1900;
-    $mon++;
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d Z", $year, $mon, $mday, $hour, $min, $sec;
-}
 
 
 
-sub _threadid {
-    my $tcfg = exists $INC{threads}; 
-
-    return 0 unless $tcfg;
-
-    return threads->tid();
-}
 
 # === Logging configuration functions ===
 # These functions allow access to logging configuration.

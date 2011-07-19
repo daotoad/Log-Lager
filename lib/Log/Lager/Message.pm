@@ -13,15 +13,16 @@ use constant _ATTR => qw(
     executable
     process_id
     thread_id
-    type
     timestamp
-    context_id
     callstack
     subroutine
     package
+    file_name
+    line_number
 );
 
-my $HOSTNAME = 'foo';
+use Sys::Hostname ();
+my $HOSTNAME = Sys::Hostname::hostname();
 
 BEGIN {
     no strict 'refs';
@@ -51,40 +52,45 @@ sub _init {
     $self->{message} = $arg{message} 
         or croak "Attribute message required for Message object.";
 
-    $self->{hostname}    = $arg{type}       || $HOSTNAME;
+    $self->{hostname}    = $arg{hostname}   || $HOSTNAME;
     $self->{executable}  = $arg{executable} || $0;
     $self->{process_id}  = $arg{process_id} || $$;
     $self->{thread_id}   = $arg{thread_id}  || _thread_id();
 
-    $self->{type}        = $arg{type}       || 'ENTRY';
-    $self->{timestamp}   = $arg{timestamp}  || time;
-    $self->{context_id}  = $arg{context_id} || undef;
+    $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
 
     $self->{expanded_format} = defined $arg{expanded_format} 
                              ? $arg{expanded_format} : 0;
 
     if( defined $arg{context} ) {
         my $offset = $self->_adjust_call_stack_level($arg{context});
-    
 
         $self->{callstack}
             = defined $arg{callstack} ? $arg{callstack} 
             : $arg{want_stack}        ? $self->_fetch_callstack($offset) 
             :                           undef;
 
-        my ($sub, $pkg) = $self->_fetch_caller_info( $offset );
+        my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
 
-        $self->{subroutine} = defined $arg{subroutine} 
-                            ? $arg{subroutine}
-                            : $sub;
+        $self->{subroutine}  = defined $arg{subroutine} 
+                             ? $arg{subroutine}
+                             : $sub;
 
-        $self->{package}    = defined $arg{package}    
-                            ? $arg{package}
-                            : $pkg;
+        $self->{package}     = defined $arg{package}    
+                             ? $arg{package}
+                             : $pkg;
+
+        $self->{line_number} = defined $arg{line_number}    
+                             ? $arg{line_number}
+                             : $line;
+
+        $self->{file_name}   = defined $arg{file_name}    
+                             ? $arg{file_name}
+                             : $file;
 
     }
     else {
-        my @attr = qw/package subroutine/;
+        my @attr = qw/package subroutine file_name line_number/;
         push @attr, 'callstack' if $arg{want_stack};
         for my $attr (@attr) { 
             croak "$attr is required when context is not provided"
@@ -97,8 +103,8 @@ sub _init {
 }
 
 sub _adjust_call_stack_level {
-    my $level = shift, shift;
-
+    shift;
+    my $level = shift;
 
     my $offset = 0;
     $offset++ while caller($offset)->isa('Log::Lager::Message');
@@ -117,12 +123,18 @@ sub _fetch_caller_info {
     my $level = shift;
     
     my @info = caller($level);
-    
-    return @info[0,3];
+
+    my ($file, $line, $pkg, $sub) = @info[1, 2, 3, 0];
+
+    return ( $file, $line, $sub, $pkg );
 }
 
 sub _thread_id {
-    return 0;
+    my $tcfg = exists $INC{threads}; 
+
+    return 0 unless $tcfg;
+
+    return threads->tid();
 }
 
 
@@ -160,13 +172,13 @@ sub _general_formatter {
     my $header = [
         map $self->{$_}, qw/ 
              timestamp
-             type
              loglevel
              hostname
-             executable
              process_id
              thread_id
-             context_id
+             executable
+             file_name
+             line_number
              package
              subroutine
         /
@@ -174,7 +186,7 @@ sub _general_formatter {
 
     my $message = $json->encode(  abridge_items_recursive( $header, @{$self->{message}}  )  );
 
-    return $message;
+    return "$message\n";
 }
 
 # Actual format routines
@@ -187,6 +199,16 @@ sub format {
     return $self->{expanded_format} ? $self->_expanded_formatter() : $self->_compact_formatter;
 }
 
+
+sub _timestamp {
+    shift;
+    my $time = shift || time;
+
+    my ( $sec, $min, $hour, $mday, $mon, $year ) = gmtime($time);
+    $year += 1900;
+    $mon++;
+    return sprintf "%04d-%02d-%02d %02d:%02d:%02d Z", $year, $mon, $mday, $hour, $min, $sec;
+}
 
 1;
 
