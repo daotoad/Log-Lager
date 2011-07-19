@@ -12,6 +12,8 @@ my %WriteMakefileArgs = (
   'ABSTRACT' => 'Easy to use, flexible, parsable logs.',
   'AUTHOR' => 'Mark Swayne <daotoad@cpan.org>',
   'BUILD_REQUIRES' => {
+    'File::Temp' => '0',
+    'JSON' => '0',
     'Test::More' => '0'
   },
   'CONFIGURE_REQUIRES' => {
@@ -28,14 +30,16 @@ my %WriteMakefileArgs = (
     'Exporter' => '0',
     'Hash::Util' => '0',
     'IO::File' => '0',
+    'JSON::XS' => '0',
     'Scalar::Util' => '0',
+    'Sys::Hostname' => '0',
     'Sys::Syslog' => '0',
     'constant' => '0',
     'overload' => '0'
   },
-  'VERSION' => '0.02',
+  'VERSION' => '0.03',
   'test' => {
-    'TESTS' => 't/*.t t/CommandParser/*.t'
+    'TESTS' => 't/*.t t/CommandParser/*.t t/Message/*.t'
   }
 );
 

@@ -3,6 +3,8 @@ abstract: 'Easy to use, flexible, parsable logs.'
 author:
   - 'Mark Swayne <daotoad@cpan.org>'
 build_requires:
+  File::Temp: 0
+  JSON: 0
   Test::More: 0
 configure_requires:
   ExtUtils::MakeMaker: 6.30
@@ -20,8 +22,10 @@ requires:
   Exporter: 0
   Hash::Util: 0
   IO::File: 0
+  JSON::XS: 0
   Scalar::Util: 0
+  Sys::Hostname: 0
   Sys::Syslog: 0
   constant: 0
   overload: 0
-version: 0.02
+version: 0.03

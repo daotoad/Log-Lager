@@ -4,7 +4,7 @@ use warnings;
 
 use Test::More tests => 24;
 
-use_ok( 'Log::Lager' );
+use_ok( 'Log::Lager' ) or BAIL_OUT('Module under test failed to load');
 
 
 my @LOG_LEVELS = (

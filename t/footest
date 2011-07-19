@@ -1,0 +1,24 @@
+#!/bin/env perl
+
+use strict;
+use warnings;
+
+{   my $foo;  
+    open my $fh, '>', \$foo or die "Can't open lexical";
+
+    print $fh "Print to my $foo\n" or warn "Bad rint";
+
+    close $fh;
+
+    print "FOO: $foo\n";
+}
+
+{   our $foo;  
+    open my $fh, '>', \$foo or die "Can't open global";
+
+    print $fh "Print to our $foo\n";
+
+    close $fh;
+
+    print "FOO: $foo\n";
+}

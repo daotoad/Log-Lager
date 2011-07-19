@@ -1,0 +1,36 @@
+BEGIN MESSAGE
+[
+   [
+      "2011-07-19 17:33:44 Z",
+      "GUTS",
+      "tiny",
+      5674,
+      0,
+      "t/03-log_messages.t",
+      "(eval 79)",
+      9,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message"
+]
+
+Exception thrown - [
+   [
+      "2011-07-19 17:33:44 Z",
+      "GUTS",
+      "tiny",
+      5674,
+      0,
+      "t/03-log_messages.t",
+      "(eval 79)",
+      9,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message"
+]
+
+
+
+END MESSAGE
