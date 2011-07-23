@@ -131,6 +131,7 @@ sub _fetch_caller_info {
     return ( $file, $line, $pkg, $sub );
 }
 
+# Check Config:usethreads
 sub _thread_id {
     my $tcfg = exists $INC{threads}; 
 

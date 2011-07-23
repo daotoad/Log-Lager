@@ -100,6 +100,7 @@ sub _bitmask_to_mask_string {
     return $string;
 }
 
+# table lookup
 sub _mask_string_to_bitmask {
     my $string = shift;
 
@@ -113,6 +114,7 @@ sub _mask_string_to_bitmask {
     return $mask;
 }
 
+# speedup by moving for data out of sub/to state var
 sub _convert_mask_to_bits {
     my $mask = shift;
 
@@ -327,7 +329,7 @@ sub _handle_message {
     # Get raw messages from either callback or @_
     my @messages;
     {   no warnings 'uninitialized';
-
+# Too clever
         @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_[0]->() : @_;
     }
 
