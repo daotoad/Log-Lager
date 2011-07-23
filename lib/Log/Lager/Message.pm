@@ -5,6 +5,7 @@ use Carp qw<croak>;
 
 use Hash::Util qw<lock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
+ 
 
 use constant _ATTR => qw(
     loglevel
@@ -21,13 +22,29 @@ use constant _ATTR => qw(
     line_number
 );
 
+use constant {
+    PACKAGE     => 0,
+    FILE_NAME   => 1,
+    LINE_NO     => 2,
+    SUBROUTINE  => 3,
+    HAS_ARGS    => 4,
+    WANT_ARRAY  => 5,
+    EVAL_TEXT   => 6,
+    IS_REQUIRE  => 7,
+    HINTS       => 8,
+    BIT_MASK    => 9,
+    HINT_HASH   => 10,
+};
+
 use Sys::Hostname ();
 my $HOSTNAME = Sys::Hostname::hostname();
 
-BEGIN {
-    no strict 'refs';
+BEGIN {     # Install attribute methods.
+
     for my $attr ( _ATTR ) {
-        *{$attr} = sub {  $_[0]->{$attr} };
+        my $sub = sub { $_[0]->{$attr} };
+        no strict 'refs';
+        *{$attr} = $sub;
     }
 }
 
@@ -66,7 +83,7 @@ sub _init {
 
         $self->{callstack}
             = defined $arg{callstack} ? $arg{callstack} 
-            : $arg{want_stack}        ? $self->_fetch_callstack($offset) 
+            : $arg{want_stack}        ? $self->_callstack($offset) 
             :                           undef;
 
         my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
@@ -112,10 +129,48 @@ sub _adjust_call_stack_level {
     return $level + $offset;
 }
 
-sub _fetch_callstack {
+
+sub _clip_string {
+    my $l = length $_[0];
+
+    return $_[0] unless $l > 25;
+    
+    my $h = substr $_[0], 0, 12;  
+    my $t = substr $_[0], -11;
+
+    "$h...$t";
+}
+
+sub _callstack { 
     my $self = shift;
     my $level = shift;
 
+    my @stack;
+    while (1) {
+        my @env;
+        my @args;
+        {   package DB; 
+            @env  = caller($level); 
+            @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
+        }
+        last unless defined $env[0];
+
+        push @stack, {
+            args => [ map _clip_string($_), 
+                      map "$_", @args
+                    ],
+            file_name  => @env[FILE_NAME ],
+            package    => @env[PACKAGE   ],
+            line       => @env[LINE_NO   ],
+            sub        => @env[SUBROUTINE],
+            wantarry   => @env[WANT_ARRAY],
+            eval_text  => @env[EVAL_TEXT ],
+        }; 
+
+        $level++;
+    } 
+
+    \@stack;
 }
 
 sub _fetch_caller_info {
@@ -123,10 +178,9 @@ sub _fetch_caller_info {
     my $level = shift;
 
     my @info = caller($level);
-    my ($file, $line, $pkg) = @info[1, 2, 0];
+    my ($file, $line, $pkg) = @info[FILE_NAME, LINE_NO, PACKAGE];
     @info = caller($level+1);
-    my $sub = $info[3];
-
+    my $sub = $info[SUBROUTINE];
 
     return ( $file, $line, $pkg, $sub );
 }
@@ -187,7 +241,16 @@ sub _general_formatter {
         /
     ];
 
-    my $message = $json->encode(  abridge_items_recursive( $header, @{$self->{message}}  )  );
+    my @callstack = $self->{callstack} 
+                  ? { callstack => $self->{callstack} } : (); 
+
+    my $message = $json->encode(
+        abridge_items_recursive(
+            $header,
+            @{$self->{message}},
+            @callstack,
+        )
+    );
 
     return "$message\n";
 }
