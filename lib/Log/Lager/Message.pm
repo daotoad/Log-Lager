@@ -2,6 +2,7 @@ package Log::Lager::Message;
 use strict;
 use warnings;
 use Carp qw<croak>;
+use Config qw( %Config );
 
 use Hash::Util qw<lock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
@@ -164,7 +165,6 @@ sub _callstack {
             line       => @env[LINE_NO   ],
             sub        => @env[SUBROUTINE],
             wantarry   => @env[WANT_ARRAY],
-            eval_text  => @env[EVAL_TEXT ],
         }; 
 
         $level++;
@@ -187,6 +187,7 @@ sub _fetch_caller_info {
 
 # Check Config:usethreads
 sub _thread_id {
+    return 0 unless $Config{usethreads};
     my $tcfg = exists $INC{threads}; 
 
     return 0 unless $tcfg;
