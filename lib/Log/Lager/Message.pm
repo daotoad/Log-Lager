@@ -160,11 +160,11 @@ sub _callstack {
             args => [ map _clip_string($_), 
                       map "$_", @args
                     ],
-            file_name  => @env[FILE_NAME ],
-            package    => @env[PACKAGE   ],
-            line       => @env[LINE_NO   ],
-            sub        => @env[SUBROUTINE],
-            wantarry   => @env[WANT_ARRAY],
+            file_name  => $env[FILE_NAME ],
+            package    => $env[PACKAGE   ],
+            line       => $env[LINE_NO   ],
+            sub        => $env[SUBROUTINE],
+            wantarry   => $env[WANT_ARRAY],
         }; 
 
         $level++;
@@ -185,12 +185,9 @@ sub _fetch_caller_info {
     return ( $file, $line, $pkg, $sub );
 }
 
-# Check Config:usethreads
 sub _thread_id {
     return 0 unless $Config{usethreads};
-    my $tcfg = exists $INC{threads}; 
-
-    return 0 unless $tcfg;
+    return 0 unless defined &threads::tid;
 
     return threads->tid();
 }
