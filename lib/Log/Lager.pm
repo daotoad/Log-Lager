@@ -101,6 +101,9 @@ sub _bitmask_to_mask_string {
 }
 
 # table lookup
+# May be faster - 
+# Requires strings to be normalized
+# Current method handles repeats, out of order correctly.
 sub _mask_string_to_bitmask {
     my $string = shift;
 
@@ -276,7 +279,6 @@ sub _parse_commands {
     return $lex_masks;
 }
 
-
 sub _get_bits {
     my $frame = shift;
     my $flag = shift;
@@ -329,8 +331,15 @@ sub _handle_message {
     # Get raw messages from either callback or @_
     my @messages;
     {   no warnings 'uninitialized';
-# Too clever
-        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_[0]->() : @_;
+
+        if( @_ == 1 
+            && reftype($_[0]) eq 'CODE'
+        ) {
+            @messages = $_[0]->();
+        }
+        else {
+            @messages = @_;
+        }
     }
 
     my $msg;
