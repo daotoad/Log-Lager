@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.03';
+  $Log::Lager::VERSION = '0.03.01';
 }
 
 use Data::Dumper;
@@ -103,6 +103,10 @@ sub _bitmask_to_mask_string {
     return $string;
 }
 
+# table lookup
+# May be faster - 
+# Requires strings to be normalized
+# Current method handles repeats, out of order correctly.
 sub _mask_string_to_bitmask {
     my $string = shift;
 
@@ -116,6 +120,7 @@ sub _mask_string_to_bitmask {
     return $mask;
 }
 
+# speedup by moving for data out of sub/to state var
 sub _convert_mask_to_bits {
     my $mask = shift;
 
@@ -277,7 +282,6 @@ sub _parse_commands {
     return $lex_masks;
 }
 
-
 sub _get_bits {
     my $frame = shift;
     my $flag = shift;
@@ -331,7 +335,14 @@ sub _handle_message {
     my @messages;
     {   no warnings 'uninitialized';
 
-        @messages = @_ == 1 && reftype($_[0]) eq reftype(\&import) ? $_[0]->() : @_;
+        if( @_ == 1 
+            && reftype($_[0]) eq 'CODE'
+        ) {
+            @messages = $_[0]->();
+        }
+        else {
+            @messages = @_;
+        }
     }
 
     my $msg;
@@ -570,7 +581,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.03
+version 0.03.01
 
 =head1 SYNOPSIS
 

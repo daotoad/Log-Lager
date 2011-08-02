@@ -17,6 +17,7 @@ meta-spec:
 name: Log-Lager
 requires:
   Carp: 0
+  Config: 0
   Data::Abridge: 0
   Data::Dumper: 0
   Exporter: 0
@@ -26,6 +27,7 @@ requires:
   Scalar::Util: 0
   Sys::Hostname: 0
   Sys::Syslog: 0
+  Time::HiRes: 0
   constant: 0
   overload: 0
-version: 0.03
+version: 0.03.01

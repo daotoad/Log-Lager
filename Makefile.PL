@@ -25,6 +25,7 @@ my %WriteMakefileArgs = (
   'NAME' => 'Log::Lager',
   'PREREQ_PM' => {
     'Carp' => '0',
+    'Config' => '0',
     'Data::Abridge' => '0',
     'Data::Dumper' => '0',
     'Exporter' => '0',
@@ -34,10 +35,11 @@ my %WriteMakefileArgs = (
     'Scalar::Util' => '0',
     'Sys::Hostname' => '0',
     'Sys::Syslog' => '0',
+    'Time::HiRes' => '0',
     'constant' => '0',
     'overload' => '0'
   },
-  'VERSION' => '0.03',
+  'VERSION' => '0.03.01',
   'test' => {
     'TESTS' => 't/*.t t/CommandParser/*.t t/Message/*.t'
   }

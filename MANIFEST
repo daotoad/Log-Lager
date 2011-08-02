@@ -7,6 +7,7 @@ README
 TODO
 dist.ini
 doc/Log-Lager.odp
+doc/Log-Lager.pdf
 lib/Log/Lager.pm
 lib/Log/Lager/CommandParser.pm
 lib/Log/Lager/Message.pm
@@ -16,7 +17,5 @@ t/03-log_messages.t
 t/CommandParser/01-load.t
 t/CommandParser/02-parse.t
 t/Message/01-load.t
-t/footest
-t/logfile
 t/release-pod-coverage.t
 t/release-pod-syntax.t
