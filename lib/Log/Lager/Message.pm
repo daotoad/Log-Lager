@@ -253,7 +253,7 @@ sub _general_formatter {
     my $message = $json->encode(
         abridge_items_recursive(
             $header,
-            @{$self->{message}},
+            @{$message},
             @callstack,
         )
     );
