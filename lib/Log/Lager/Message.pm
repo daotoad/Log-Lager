@@ -6,6 +6,7 @@ use Config qw( %Config );
 
 use Hash::Util qw<lock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
+use Time::HiRes 'time';
  
 
 use constant _ATTR => qw(
@@ -218,26 +219,33 @@ sub _thread_id {
     }
 }
 
+sub _header {
+    my $self = shift;
+
+    my $header = [
+        map $self->{$_}, qw/ 
+            timestamp
+            loglevel
+            hostname
+            process_id
+            thread_id
+            executable
+            file_name
+            line_number
+            package
+            subroutine
+        /
+    ];
+}
+
 # Generic formatter that takes a configured JSON object and a data structure
 # and applies one to the other.
 sub _general_formatter {
     my $json = shift;
     my $self = shift;
 
-    my $header = [
-        map $self->{$_}, qw/ 
-             timestamp
-             loglevel
-             hostname
-             process_id
-             thread_id
-             executable
-             file_name
-             line_number
-             package
-             subroutine
-        /
-    ];
+    my $header  = $self->_header;
+    my $message = $self->message;
 
     my @callstack = $self->{callstack} 
                   ? { callstack => $self->{callstack} } : (); 
@@ -268,10 +276,14 @@ sub _timestamp {
     shift;
     my $time = shift || time;
 
+    my $millis = $time - int $time;
+    $millis = int( $millis * 1000 );
+
     my ( $sec, $min, $hour, $mday, $mon, $year ) = gmtime($time);
     $year += 1900;
     $mon++;
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d Z", $year, $mon, $mday, $hour, $min, $sec;
+
+    return sprintf "%04d-%02d-%02d %02d:%02d:%02d.%03d Z", $year, $mon, $mday, $hour, $min, $sec, $millis;
 }
 
 1;
