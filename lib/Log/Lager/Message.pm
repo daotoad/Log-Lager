@@ -277,7 +277,7 @@ sub _general_formatter {
         )
     );
 
-    return "$message\n";
+    return "$message";
 }
 
 # Actual format routines
