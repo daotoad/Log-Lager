@@ -4,13 +4,12 @@ use warnings;
 use Carp qw<croak>;
 use Config qw( %Config );
 
-use Hash::Util qw<lock_hash>;
+use Hash::Util qw<lock_hash lock_hashref unlock_hashref>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
  
 
-use constant _ATTR => qw(
-    loglevel
+use constant _RO_ATTR => qw(
     message
     hostname
     executable
@@ -22,6 +21,9 @@ use constant _ATTR => qw(
     package
     file_name
     line_number
+);
+use constant _RW_ATTR => qw(
+    loglevel
 );
 
 use constant {
@@ -43,11 +45,28 @@ my $HOSTNAME = Sys::Hostname::hostname();
 
 BEGIN {     # Install attribute methods.
 
-    for my $attr ( _ATTR ) {
+    for my $attr ( _RO_ATTR ) {
         my $sub = sub { $_[0]->{$attr} };
         no strict 'refs';
         *{$attr} = $sub;
     }
+
+    for my $attr ( _RW_ATTR ) {
+        my $sub = sub {
+            my $self = shift;
+
+            if( @_ ) {
+                unlock_hashref $self;
+                $self->{$attr} = shift;
+                lock_hashref( $self );
+            }
+
+            $self->{$attr};
+        };
+        no strict 'refs';
+        *{$attr} = $sub;
+    }
+
 }
 
 sub new {
