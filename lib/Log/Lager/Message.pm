@@ -244,8 +244,8 @@ sub _general_formatter {
     my $json = shift;
     my $self = shift;
 
-    my $header  = $self->_header;
-    my $message = $self->message;
+    my $header = $self->_header;
+    my $body   = $self->message;
 
     my @callstack = $self->{callstack} 
                   ? { callstack => $self->{callstack} } : (); 
@@ -253,7 +253,7 @@ sub _general_formatter {
     my $message = $json->encode(
         abridge_items_recursive(
             $header,
-            @{$message},
+            @{$body},
             @callstack,
         )
     );
