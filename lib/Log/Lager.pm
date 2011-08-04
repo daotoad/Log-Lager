@@ -349,8 +349,17 @@ sub _handle_message {
         && $messages[0]->isa('Log::Lager::Message')
     }) {
         $msg = $messages[0];
-        $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] ) 
+        $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] )
             unless $msg->loglevel;
+        $msg->expanded_format($pretty_bit)
+            unless defined $msg->expanded_format;
+
+        my $obj_want_stack = $msg->want_stack;
+        $obj_want_stack = $stack_bit
+            unless defined $obj_want_stack;
+
+        $msg->callstack
+            if $obj_want_stack;
     }
     else {
         $msg = $DEFAULT_MESSAGE_CLASS->new(

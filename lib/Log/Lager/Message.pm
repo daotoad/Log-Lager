@@ -24,6 +24,8 @@ use constant _RO_ATTR => qw(
 );
 use constant _RW_ATTR => qw(
     loglevel
+    want_stack
+    expanded_format
 );
 
 use constant {
@@ -76,7 +78,7 @@ sub new {
     bless $self, $class;
     $self->_init(@_);
     lock_hash %$self;
-    
+
     return $self;
 }
 
@@ -84,7 +86,8 @@ sub _init {
     my $self = shift;
     my %arg = @_;
 
-    $self->{message} = $arg{message} 
+
+    $self->{message} = $arg{message}
         or croak "Attribute message required for Message object.";
 
     $self->{loglevel}    = $arg{loglevel};
@@ -96,16 +99,21 @@ sub _init {
 
     $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
 
-    $self->{expanded_format} = defined $arg{expanded_format} 
-                             ? $arg{expanded_format} : 0;
+    $self->{expanded_format} = defined $arg{expanded_format}
+                             ? $arg{expanded_format}
+                             : $self->{expanded_format};
+
+    $self->{want_stack} = defined $arg{want_stack}
+                        ? $arg{want_stack}
+                        : $self->{want_stack};
 
     if( defined $arg{context} ) {
         my $offset = $self->_adjust_call_stack_level($arg{context});
 
         $self->{callstack}
-            = defined $arg{callstack} ? $arg{callstack} 
-            : $arg{want_stack}        ? $self->_callstack($offset) 
-            :                           undef;
+            = defined $arg{callstack}  ? $arg{callstack} 
+            : $self->{want_stack}      ? $self->_callstack($offset)
+            :                            undef;
 
         my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
 
@@ -128,15 +136,15 @@ sub _init {
     }
     else {
         my @attr = qw/package subroutine file_name line_number/;
-        push @attr, 'callstack' if $arg{want_stack};
-        for my $attr (@attr) { 
+        push @attr, 'callstack' if $self->{want_stack};
+        for my $attr (@attr) {
             croak "$attr is required when context is not provided"
                 unless defined $arg{$attr};
 
             $self->{$attr} = $arg{$attr};
         }
     }
-    
+
 }
 
 sub _adjust_call_stack_level {
@@ -162,9 +170,12 @@ sub _clip_string {
     "$h...$t";
 }
 
-sub _callstack { 
+sub _callstack {
     my $self = shift;
     my $level = shift;
+
+    $level = $self->{context}
+        unless defined $level;
 
     my @stack;
     while (1) {
@@ -177,7 +188,7 @@ sub _callstack {
         last unless defined $env[0];
 
         push @stack, {
-            args => [ map _clip_string($_), 
+            args => [ map _clip_string($_),
                       map "$_", @args
                     ],
             file_name  => $env[FILE_NAME ],
