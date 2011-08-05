@@ -199,8 +199,11 @@ sub _configure_message_object {
     return unless defined $object_pkg;
     return unless length $object_pkg;
 
-    eval "require $object_pkg;"
-       . "$object_pkg->isa('Log::Lager::Message');"
+    eval << "    END"
+       require $object_pkg
+            unless $object_pkg->isa('Log::Lager::Message');
+       $object_pkg->isa('Log::Lager::Message');
+    END
         or do {
             warn "Error loading $object_pkg: $@\n";
             return;
