@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 43;
+use Test::More tests => 85;
 
 use File::Temp;
 use JSON;
@@ -47,6 +47,12 @@ my @TEST_SPECS  = (
 use_ok( 'Log::Lager' ) 
     or BAIL_OUT('Error loading Log::Lager');
 
+
+run_test_group();
+Log::Lager::apply_command('message BOOGER');
+run_test_group();
+
+sub run_test_group {
 for my $set_spec ( @TEST_SPECS ) {
     my ($cmd, $set) = @$set_spec;
 
@@ -57,6 +63,7 @@ for my $set_spec ( @TEST_SPECS ) {
         check_results( $result, $expect );
     }
 
+}
 }
 
 
@@ -129,4 +136,9 @@ sub check_results {
 
     # TODO parse etc.
 
+}
+
+BEGIN {
+    package BOOGER;
+    use base 'Log::Lager::Message';
 }
