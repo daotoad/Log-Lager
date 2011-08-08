@@ -227,16 +227,16 @@ BEGIN {
 
         my $output = $self->output;
         my $out_string = ! defined $output ? ''
-                       : $output eq 'file'   ?  join(' ', 'file_name', $self->file_name)
+                       : $output eq 'file'   ?  join(' ', 'file', $self->file_name)
                        : $output eq 'syslog' ?  join(' ', 'syslog', $self->syslog_identity, $self->syslog_facility)
                        : 'stderr';
 
         my $lexon_string = $self->lexicals_enabled ? 'lexon' : 'lexoff';
 
         my $message_object = $self->message_object;
-        $message_object = 'Log::Lager::Message' 
+        $message_object = 'Log::Lager::Message'
             unless defined $message_object;
-        
+
         $message_object = "message $message_object";
 
         my $string = join ' ', grep length, $mask_string,  $out_string, 
