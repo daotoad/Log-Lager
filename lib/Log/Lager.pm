@@ -584,8 +584,13 @@ sub log_level {
 __END__
 
 
-=for Pod::Coverage unimport load_config_file
+=for Pod::Coverage
 
+import
+
+=for Pod::Coverage
+
+unimport
 
 
 =head1 NAME
@@ -792,17 +797,21 @@ Disabled by default.
 
 =head1 OTHER FUNCTIONS
 
-=head2 Log::Lager::log_level
+=head2 log_level
 
 Emits a Log::Lager command string capable of producing the current log level.
 
-=head2 Log::Lager::apply_command
+=head2 apply_command
 
 Run configuration commands at run-time.
 
+=head2 load_config_file
+
+Load a configuration file.  Once a file is loaded, it will be monitored for changes.  Any changes to the file will be detected and new configuration will be applied to a running application.
+
 =head1 CONTROLLING LOG OUTPUT
 
-Each log event may be configured in several ways: it may be enabled or 
+Each log event may be configured in several ways: it may be enabled or
 disabled, compact or pretty printed, and fatal or nonfatal.
 
 This library provides facilities for altering log masks for specific
