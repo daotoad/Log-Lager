@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 12;
 
 use Log::Lager::CommandParser 'parse_command';
 use Log::Lager;
@@ -44,3 +44,10 @@ my $log_level = Log::Lager::log_level;
 Log::Lager::apply_command($log_level);
 my $round_trip = Log::Lager::log_level;
 is( $log_level, $round_trip, 'Round trip OK' );
+
+Log::Lager::apply_command('stderr');
+Log::Lager->apply_command( $log_level );
+my $arrows = Log::Lager->log_level;
+is( $arrows, $round_trip, 'Round trip OK' );
+
+

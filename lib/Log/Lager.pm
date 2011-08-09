@@ -418,6 +418,7 @@ sub _output_file {
 
 # Apply a generic command set to the current configuration
 sub apply_command {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
     _parse_commands( [0,0], 'base enable', @_ );
 }
 
@@ -425,6 +426,8 @@ sub apply_command {
 # This function is looks for changes in the configured file before processing it.
 # It is safe to call this function a lot.
 sub load_config_file {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+
     my $path = @_ ? shift : $PREVIOUS_CONFIG_FILE;
 
     return unless $path;
@@ -539,6 +542,7 @@ sub unimport {
 # Emit the current logging settings as a string usable as a configuration 
 # command.
 sub log_level {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
 
     my $r = Log::Lager::CommandResult->new;
 
