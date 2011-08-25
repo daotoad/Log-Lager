@@ -511,8 +511,8 @@ sub import {
         ];
         $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
 
-        $^H{'Log::Lager::Log_enable'}  = $mask->[0] // 0;
-        $^H{'Log::Lager::Log_disable'} = $mask->[1] // 0;
+        $^H{'Log::Lager::Log_enable'}  = defined($mask->[0]) ? $mask->[0] : 0;
+        $^H{'Log::Lager::Log_disable'} = defined($mask->[1]) ? $mask->[1] : 0;
     }
 
     return;
