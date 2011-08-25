@@ -69,9 +69,9 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 # === Code Generation ===
 # Generate Log Level functions
 {   no strict 'refs';
-    for my $_ ( @LOG_LEVELS ) {
-        my $func = $_->[FUNCTION];
-        my $level = $_->[MASK_CHAR];
+    for my $l ( @LOG_LEVELS ) {
+        my $func = $l->[FUNCTION];
+        my $level = $l->[MASK_CHAR];
         *$func = sub { _handle_message( $level, @_ ); };
     }
 }
@@ -495,9 +495,9 @@ sub import {
     unless( defined $hints->{'Log::Lager::Log_enable'} ) {
         no strict 'refs';
 
-        for my $_ ( @LOG_LEVELS ) {
-            my $func = $_->[FUNCTION];
-            my $level = $_->[MASK_CHAR];
+        for my $l ( @LOG_LEVELS ) {
+            my $func = $l->[FUNCTION];
+            my $level = $l->[MASK_CHAR];
             my $dest_func = "${caller}::$func";
             *$dest_func = \&$func;
         }
@@ -526,7 +526,7 @@ sub unimport {
     shift;
     my @commands = @_;
 
-    croak "Us 'Log::Lager' with log level codes only"
+    croak "Use 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
     my $mask = [
