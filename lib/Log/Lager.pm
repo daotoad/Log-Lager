@@ -12,29 +12,33 @@ use JSON::XS;
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
 
+*INTERNAL_TRACE = sub () { 0 }
+    unless defined &INTERNAL_TRACE;
+
+
 
 # Global configuration
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
-my $BASE_MASK;          # Base mask that all other masks are calculated relative to
-my %PACKAGE_MASK;       # Storage for package specific masks
-my %SUBROUTINE_MASK;    # Storage for sub specific masks
+our $BASE_MASK;          # Base mask that all other masks are calculated relative to
+our %PACKAGE_MASK;       # Storage for package specific masks
+our %SUBROUTINE_MASK;    # Storage for sub specific masks
 
 # === Global config ===
 # Non-mask variables that store current configuration information
-my $ENABLE_LEXICAL;     # Boolean flag for lexical controls
-my $OUTPUT_TARGET;      # Name of output facility
-my $SYSLOG_IDENTITY;    # Idenitity if using syslog output
-my $SYSLOG_FACILITY;    # Facility if using syslog output
-my $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
+our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
+our $OUTPUT_TARGET;      # Name of output facility
+our $SYSLOG_IDENTITY;    # Idenitity if using syslog output
+our $SYSLOG_FACILITY;    # Facility if using syslog output
+our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 
-my $OUTPUT_FILE_NAME;   # File name of for output if using file output.
-my $OUTPUT_FILE_HANDLE; # File handle if using file output.
-my $OUTPUT_FUNCTION;    # Code ref of emitter function.
+our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
+our $OUTPUT_FILE_HANDLE; # File handle if using file output.
+our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
-my $PREVIOUS_CONFIG_FILE = '';
-my $CONFIG_LOAD_TIME = 0;
-my $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
+our $PREVIOUS_CONFIG_FILE = '';
+our $CONFIG_LOAD_TIME = 0;
+our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
 # === Configure Log Levels ===
@@ -63,7 +67,7 @@ use constant {  # Number of bits to left shift for access to different parts of 
 
 # Process @LOG_LEVELS for easy access
 my @MASK_CHARS = map $_->[MASK_CHAR], @LOG_LEVELS;
-my %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
+our %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
 my $MASK_REGEX = join '', keys %MASK_CHARS;
 
 # === Code Generation ===
@@ -77,7 +81,7 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-my @DEFAULT = qw( base enable FEW fatal F lexon stderr );
+our @DEFAULT = qw( base enable FEW fatal F lexon stderr );
 _parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
