@@ -224,11 +224,19 @@ sub _parse_commands {
     my $result = parse_command( @commands );
     my $lex_masks = [@$masks];  # Copy lex masks to avoid leaky side effects
 
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
+        use Data::Dumper; print Dumper $result->base;
+    }
+
     # apply changes to BASE
-    {   my @bitmasks = _convert_mask_to_bits( $result->base );
+    if( $result->base->changed ) {
+        my @bitmasks = _convert_mask_to_bits( $result->base );
         $BASE_MASK |=  $bitmasks[0];
         $BASE_MASK &= ~$bitmasks[1];
     }
+    printf STDERR "BASE MASK: %08X\n", $BASE_MASK
+        if Log::Lager::INTERNAL_TRACE();
 
     # Lexical Mask
     {   my @bitmasks = _convert_mask_to_bits( $result->lexical );
@@ -311,10 +319,10 @@ sub _get_bits {
         $mask &= ~(defined $apply->[1] ? $apply->[1] : 0);
     }
 
-    $on_bit     &= $mask;
-    $die_bit    &= $mask;
-    $stack_bit  &= $mask;
-    $pretty_bit &= $mask;
+    $on_bit     = $on_bit     & $mask ? 1 : 0;
+    $die_bit    = $die_bit    & $mask ? 1 : 0;
+    $stack_bit  = $stack_bit  & $mask ? 1 : 0;
+    $pretty_bit = $pretty_bit & $mask ? 1 : 0;
 
     return $on_bit, $die_bit, $pretty_bit, $stack_bit;
 }

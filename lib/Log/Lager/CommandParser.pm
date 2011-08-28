@@ -86,7 +86,8 @@ STATE:
         #warn "Next is $next\n" if defined $next;;
 
         if( not defined $next and $self->end_state ) {
-            $self->result->base->complete;
+            my $base = $self->result->base;
+            $base->complete if $base->changed;
             return $self->result
         }
 
@@ -277,6 +278,8 @@ BEGIN {
         my $off   = shift;
         my $chars = shift || '';
 
+        $self->{__IS_SET__} = 1;
+
         my @chars = split //, $chars;
 
         for my $c ( @chars ) {
@@ -354,6 +357,11 @@ BEGIN {
             map [$_, $self->$_()], GROUPS;
 
         return $string;
+    }
+
+    sub changed {
+        my $self = shift;
+        return $self->{__IS_SET__};
     }
 
 }
