@@ -275,6 +275,7 @@ sub _parse_commands {
     # Lexical control flag
     my $lexon = $result->lexicals_enabled;
     $ENABLE_LEXICAL = $lexon if defined $lexon;
+    $ENABLE_LEXICAL = 0 if $] < 5.009;
 
     my $default_message = $result->message_object;
     _configure_message_object( $default_message );
