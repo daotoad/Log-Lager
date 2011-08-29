@@ -2,7 +2,11 @@
 use strict;
 use warnings;
 
-use Test::More tests => 85;
+my @useargs;
+BEGIN {
+    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : tests => 85;
+}
+use Test::More @useargs;
 
 use File::Temp;
 use JSON;
