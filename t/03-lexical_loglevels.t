@@ -4,7 +4,7 @@ use warnings;
 
 my @useargs;
 BEGIN {
-    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : tests => 85;
+    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 85 );
 }
 use Test::More @useargs;
 
