@@ -1,0 +1,132 @@
+BEGIN MESSAGE
+[
+   [
+      "2011-08-29 23:46:12.575 Z",
+      "GUTS",
+      "jolt.sea",
+      22080,
+      0,
+      "t/03-lexical_loglevels.t",
+      "(eval 145)",
+      10,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message",
+   {
+      "callstack": [
+         {
+            "args": [
+               "Message"
+            ],
+            "file_name": "(eval 145)",
+            "line": 10,
+            "package": "_My_::Test",
+            "sub": "Log::Lager::__ANON__",
+            "wantarry": null
+         },
+         {
+            "args": [],
+            "file_name": "(eval 145)",
+            "line": 7,
+            "package": "_My_::Test",
+            "sub": "_My_::Test::log_me",
+            "wantarry": null
+         },
+         {
+            "args": [],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 104,
+            "package": "main",
+            "sub": "(eval)",
+            "wantarry": ""
+         },
+         {
+            "args": [
+               "use Log::Lag...ty FEWTDIG\"",
+               "GUTS"
+            ],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 66,
+            "package": "main",
+            "sub": "main::exec_loglevel",
+            "wantarry": ""
+         },
+         {
+            "args": [],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 57,
+            "package": "main",
+            "sub": "main::run_test_group",
+            "wantarry": null
+         }
+      ]
+   }
+]
+Exception thrown - [
+   [
+      "2011-08-29 23:46:12.575 Z",
+      "GUTS",
+      "jolt.sea",
+      22080,
+      0,
+      "t/03-lexical_loglevels.t",
+      "(eval 145)",
+      10,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message",
+   {
+      "callstack": [
+         {
+            "args": [
+               "Message"
+            ],
+            "file_name": "(eval 145)",
+            "line": 10,
+            "package": "_My_::Test",
+            "sub": "Log::Lager::__ANON__",
+            "wantarry": null
+         },
+         {
+            "args": [],
+            "file_name": "(eval 145)",
+            "line": 7,
+            "package": "_My_::Test",
+            "sub": "_My_::Test::log_me",
+            "wantarry": null
+         },
+         {
+            "args": [],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 104,
+            "package": "main",
+            "sub": "(eval)",
+            "wantarry": ""
+         },
+         {
+            "args": [
+               "use Log::Lag...ty FEWTDIG\"",
+               "GUTS"
+            ],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 66,
+            "package": "main",
+            "sub": "main::exec_loglevel",
+            "wantarry": ""
+         },
+         {
+            "args": [],
+            "file_name": "t/03-lexical_loglevels.t",
+            "line": 57,
+            "package": "main",
+            "sub": "main::run_test_group",
+            "wantarry": null
+         }
+      ]
+   }
+]
+
+
+END MESSAGE
