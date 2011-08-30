@@ -1,8 +1,12 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
 use Test::More tests => 3;
 
 #sub Log::Lager::INTERNAL_TRACE () {1};
 
-use_ok( 'Log::Lager' ) or BAIL_OUT "Error loading Log::Lager.";
+use_ok( 'Log::Lager' ) or BAIL_OUT("Error loading Log::Lager.");
 
 {
     F => [ 0, 0, 0, 0 ],
@@ -26,16 +30,20 @@ is_deeply( get_bits(), {
     G => [ 0, 0, 0, 0 ],
 }, "Default values." );
 
-use Log::Lager  'lexical enable FEWIDTG pretty FEWIDTG';
-is_deeply( get_bits(), {
-    F => [ 1, 1, 1, 0 ],
-    E => [ 1, 0, 1, 0 ],
-    W => [ 1, 0, 1, 0 ],
-    I => [ 1, 0, 1, 0 ],
-    D => [ 1, 0, 1, 0 ],
-    T => [ 1, 0, 1, 0 ],
-    G => [ 1, 0, 1, 0 ],
-}, "Lexical values applied." );
+SKIP: {
+  skip "lexical not supported before perl 5.9", 1 unless $] >= 5.009;
+
+  use Log::Lager  'lexical enable FEWIDTG pretty FEWIDTG';
+  is_deeply( get_bits(), {
+      F => [ 1, 1, 1, 0 ],
+      E => [ 1, 0, 1, 0 ],
+      W => [ 1, 0, 1, 0 ],
+      I => [ 1, 0, 1, 0 ],
+      D => [ 1, 0, 1, 0 ],
+      T => [ 1, 0, 1, 0 ],
+      G => [ 1, 0, 1, 0 ],
+  }, "Lexical values applied." );
+}
 
 
 
