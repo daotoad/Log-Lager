@@ -230,6 +230,7 @@ sub _thread_id {
 {   my $json;
 
     sub _get_compact_json {
+        # Sadly, there isn't a good way to tell this to put on just a trailing newline.
         unless( $json ) {
             $json = JSON::XS->new()
                 or die "Can't create JSON processor";
@@ -272,6 +273,7 @@ sub _header {
 # and applies one to the other.
 sub _general_formatter {
     my $json = shift;
+    my $term = shift;
     my $self = shift;
 
     my $header = $self->_header;
@@ -288,12 +290,13 @@ sub _general_formatter {
         )
     );
 
-    return "$message";
+    return "$message$term";
 }
 
 # Actual format routines
-sub _compact_formatter   { _general_formatter( _get_compact_json(), @_ )   }
-sub _expanded_formatter  { _general_formatter( _get_expanded_json(),  @_ ) }
+# Sadly, the compact formatter does not append a trailing newline.
+sub _compact_formatter   { _general_formatter( _get_compact_json(), "\n", @_ )   }
+sub _expanded_formatter  { _general_formatter( _get_expanded_json(), "", @_ ) }
 
 sub format {
     my $self = shift;
