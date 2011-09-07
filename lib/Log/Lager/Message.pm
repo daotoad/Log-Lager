@@ -4,7 +4,7 @@ use warnings;
 use Carp qw<croak>;
 use Config qw( %Config );
 
-use Hash::Util qw<lock_hash lock_hashref unlock_hashref>;
+use Hash::Util qw<lock_hash unlock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
  
@@ -58,9 +58,9 @@ BEGIN {     # Install attribute methods.
             my $self = shift;
 
             if( @_ ) {
-                unlock_hashref $self;
+                unlock_hash( %$self );
                 $self->{$attr} = shift;
-                lock_hashref( $self );
+                lock_hash( %$self );
             }
 
             $self->{$attr};

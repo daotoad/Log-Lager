@@ -12,29 +12,33 @@ use JSON::XS;
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
 
+*INTERNAL_TRACE = sub () { 0 }
+    unless defined &INTERNAL_TRACE;
+
+
 
 # Global configuration
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
-my $BASE_MASK;          # Base mask that all other masks are calculated relative to
-my %PACKAGE_MASK;       # Storage for package specific masks
-my %SUBROUTINE_MASK;    # Storage for sub specific masks
+our $BASE_MASK;          # Base mask that all other masks are calculated relative to
+our %PACKAGE_MASK;       # Storage for package specific masks
+our %SUBROUTINE_MASK;    # Storage for sub specific masks
 
 # === Global config ===
 # Non-mask variables that store current configuration information
-my $ENABLE_LEXICAL;     # Boolean flag for lexical controls
-my $OUTPUT_TARGET;      # Name of output facility
-my $SYSLOG_IDENTITY;    # Idenitity if using syslog output
-my $SYSLOG_FACILITY;    # Facility if using syslog output
-my $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
+our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
+our $OUTPUT_TARGET;      # Name of output facility
+our $SYSLOG_IDENTITY;    # Idenitity if using syslog output
+our $SYSLOG_FACILITY;    # Facility if using syslog output
+our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 
-my $OUTPUT_FILE_NAME;   # File name of for output if using file output.
-my $OUTPUT_FILE_HANDLE; # File handle if using file output.
-my $OUTPUT_FUNCTION;    # Code ref of emitter function.
+our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
+our $OUTPUT_FILE_HANDLE; # File handle if using file output.
+our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
-my $PREVIOUS_CONFIG_FILE = '';
-my $CONFIG_LOAD_TIME = 0;
-my $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
+our $PREVIOUS_CONFIG_FILE = '';
+our $CONFIG_LOAD_TIME = 0;
+our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
 # === Configure Log Levels ===
@@ -63,21 +67,21 @@ use constant {  # Number of bits to left shift for access to different parts of 
 
 # Process @LOG_LEVELS for easy access
 my @MASK_CHARS = map $_->[MASK_CHAR], @LOG_LEVELS;
-my %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
+our %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
 my $MASK_REGEX = join '', keys %MASK_CHARS;
 
 # === Code Generation ===
 # Generate Log Level functions
 {   no strict 'refs';
-    for my $_ ( @LOG_LEVELS ) {
-        my $func = $_->[FUNCTION];
-        my $level = $_->[MASK_CHAR];
+    for my $l ( @LOG_LEVELS ) {
+        my $func = $l->[FUNCTION];
+        my $level = $l->[MASK_CHAR];
         *$func = sub { _handle_message( $level, @_ ); };
     }
 }
 
 # === Initialize masks  ===
-my @DEFAULT = qw( base enable FEW fatal F lexon stderr );
+our @DEFAULT = qw( base enable FEW fatal F lexon stderr );
 _parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
@@ -220,11 +224,19 @@ sub _parse_commands {
     my $result = parse_command( @commands );
     my $lex_masks = [@$masks];  # Copy lex masks to avoid leaky side effects
 
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
+        use Data::Dumper; print Dumper $result->base;
+    }
+
     # apply changes to BASE
-    {   my @bitmasks = _convert_mask_to_bits( $result->base );
+    if( $result->base->changed ) {
+        my @bitmasks = _convert_mask_to_bits( $result->base );
         $BASE_MASK |=  $bitmasks[0];
         $BASE_MASK &= ~$bitmasks[1];
     }
+    printf STDERR "BASE MASK: %08X\n", $BASE_MASK
+        if Log::Lager::INTERNAL_TRACE();
 
     # Lexical Mask
     {   my @bitmasks = _convert_mask_to_bits( $result->lexical );
@@ -275,6 +287,7 @@ sub _parse_commands {
     # Lexical control flag
     my $lexon = $result->lexicals_enabled;
     $ENABLE_LEXICAL = $lexon if defined $lexon;
+    $ENABLE_LEXICAL = 0 if $] < 5.009;
 
     my $default_message = $result->message_object;
     _configure_message_object( $default_message );
@@ -307,10 +320,10 @@ sub _get_bits {
         $mask &= ~(defined $apply->[1] ? $apply->[1] : 0);
     }
 
-    $on_bit     &= $mask;
-    $die_bit    &= $mask;
-    $stack_bit  &= $mask;
-    $pretty_bit &= $mask;
+    $on_bit     = $on_bit     & $mask ? 1 : 0;
+    $die_bit    = $die_bit    & $mask ? 1 : 0;
+    $stack_bit  = $stack_bit  & $mask ? 1 : 0;
+    $pretty_bit = $pretty_bit & $mask ? 1 : 0;
 
     return $on_bit, $die_bit, $pretty_bit, $stack_bit;
 }
@@ -418,6 +431,7 @@ sub _output_file {
 
 # Apply a generic command set to the current configuration
 sub apply_command {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
     _parse_commands( [0,0], 'base enable', @_ );
 }
 
@@ -425,6 +439,8 @@ sub apply_command {
 # This function is looks for changes in the configured file before processing it.
 # It is safe to call this function a lot.
 sub load_config_file {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+
     my $path = @_ ? shift : $PREVIOUS_CONFIG_FILE;
 
     return unless $path;
@@ -492,9 +508,9 @@ sub import {
     unless( defined $hints->{'Log::Lager::Log_enable'} ) {
         no strict 'refs';
 
-        for my $_ ( @LOG_LEVELS ) {
-            my $func = $_->[FUNCTION];
-            my $level = $_->[MASK_CHAR];
+        for my $l ( @LOG_LEVELS ) {
+            my $func = $l->[FUNCTION];
+            my $level = $l->[MASK_CHAR];
             my $dest_func = "${caller}::$func";
             *$dest_func = \&$func;
         }
@@ -508,8 +524,8 @@ sub import {
         ];
         $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
 
-        $^H{'Log::Lager::Log_enable'}  = $mask->[0] // 0;
-        $^H{'Log::Lager::Log_disable'} = $mask->[1] // 0;
+        $^H{'Log::Lager::Log_enable'}  = defined($mask->[0]) ? $mask->[0] : 0;
+        $^H{'Log::Lager::Log_disable'} = defined($mask->[1]) ? $mask->[1] : 0;
     }
 
     return;
@@ -523,7 +539,7 @@ sub unimport {
     shift;
     my @commands = @_;
 
-    croak "Us 'Log::Lager' with log level codes only"
+    croak "Use 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
     my $mask = [
@@ -539,6 +555,7 @@ sub unimport {
 # Emit the current logging settings as a string usable as a configuration 
 # command.
 sub log_level {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
 
     my $r = Log::Lager::CommandResult->new;
 
@@ -580,8 +597,13 @@ sub log_level {
 __END__
 
 
-=for Pod::Coverage unimport load_config_file
+=for Pod::Coverage
 
+import
+
+=for Pod::Coverage
+
+unimport
 
 
 =head1 NAME
@@ -788,17 +810,21 @@ Disabled by default.
 
 =head1 OTHER FUNCTIONS
 
-=head2 Log::Lager::log_level
+=head2 log_level
 
 Emits a Log::Lager command string capable of producing the current log level.
 
-=head2 Log::Lager::apply_command
+=head2 apply_command
 
 Run configuration commands at run-time.
 
+=head2 load_config_file
+
+Load a configuration file.  Once a file is loaded, it will be monitored for changes.  Any changes to the file will be detected and new configuration will be applied to a running application.
+
 =head1 CONTROLLING LOG OUTPUT
 
-Each log event may be configured in several ways: it may be enabled or 
+Each log event may be configured in several ways: it may be enabled or
 disabled, compact or pretty printed, and fatal or nonfatal.
 
 This library provides facilities for altering log masks for specific

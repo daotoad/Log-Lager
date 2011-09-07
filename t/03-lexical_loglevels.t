@@ -2,7 +2,11 @@
 use strict;
 use warnings;
 
-use Test::More tests => 85;
+my @useargs;
+BEGIN {
+    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 85 );
+}
+use Test::More @useargs;
 
 use File::Temp;
 use JSON;
@@ -60,7 +64,7 @@ for my $set_spec ( @TEST_SPECS ) {
         my ($level, $expect) = @$test;
     
         my $result = exec_loglevel( $cmd, $level );
-        check_results( $result, $expect );
+        check_results( $result, $expect, $level );
     }
 
 }
@@ -83,6 +87,7 @@ sub exec_loglevel {
     $lexical_cmd;
     use Log::Lager 'file $path';
     use Log::Lager 'stack FEWTDIG';
+    no warnings 'redefine';
 
     log_me();
 
@@ -94,7 +99,7 @@ sub exec_loglevel {
     
 END
 
-    print "$cut";
+    warn "$cut";
 
     eval $cut or do { 
         open my $fh, '>>', $path;
@@ -117,8 +122,10 @@ END
 sub check_results {
     my $results = shift;
     my $expect  = shift;
+    my $level   = shift;
 
-    warn "RESULTS:\n@$results\n";
+    warn "\n$level => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
+    warn "RESULTS:\n".join("", @$results)."\n";
 
     my $cmp = ! $expect->{enabled}   ? '<'
             : $expect->{stack_trace} ? '>'
