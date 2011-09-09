@@ -26,6 +26,7 @@ use constant _RW_ATTR => qw(
     loglevel
     want_stack
     expanded_format
+    return_values
 );
 
 use constant {
