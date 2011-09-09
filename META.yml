@@ -30,4 +30,4 @@ requires:
   Time::HiRes: 0
   constant: 0
   overload: 0
-version: 0.03.02
+version: 0.04

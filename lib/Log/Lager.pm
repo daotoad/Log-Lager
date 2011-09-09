@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.03.02';
+  $Log::Lager::VERSION = '0.04';
 }
 
 use Data::Dumper;
@@ -343,7 +343,7 @@ sub _handle_message {
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
 
-    return unless $on_bit;
+    return if !$on_bit && !defined wantarray;
 
     my $formatter = $pretty_bit ? \&_pretty_formatter : \&_compact_formatter;
 
@@ -362,6 +362,7 @@ sub _handle_message {
     }
 
     my $msg;
+    my @return_values;
     # Is @messages a single entry of type Log::Lager::Message? - 
     if( eval {
         @messages == 1
@@ -379,6 +380,9 @@ sub _handle_message {
 
         $msg->callstack
             if $obj_want_stack;
+
+        my $rv = $msg->return_values;
+        @return_values = @$rv if ref($rv) eq 'ARRAY';
     }
     else {
         $msg = $DEFAULT_MESSAGE_CLASS->new(
@@ -390,20 +394,25 @@ sub _handle_message {
         );
     }
 
-    my $message = $msg->format;
+    if ($on_bit) {
+        my $message = $msg->format;
 
-    #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
+        #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
 
-    my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
-    $emitter->($level, $message);
+        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
+        $emitter->($level, $message);
 
-    if( $die_bit ) {
-       die "$message\n";
+        if( $die_bit ) {
+           die "$message\n";
+        }
+
+        load_config_file();
     }
 
-    load_config_file();
-
-    return;
+    return                   if !defined wantarray;
+    return @return_values    if wantarray;
+    return $return_values[0] if @return_values <= 1;
+    die "Have multiple return values when wantarray is false\n";
 }
 
 # Output type specific handlers
@@ -615,7 +624,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.03.02
+version 0.04
 
 =head1 SYNOPSIS
 

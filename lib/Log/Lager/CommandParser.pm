@@ -1,6 +1,6 @@
 package Log::Lager::CommandParser;
 BEGIN {
-  $Log::Lager::CommandParser::VERSION = '0.03.02';
+  $Log::Lager::CommandParser::VERSION = '0.04';
 }
 use strict;
 use warnings;
@@ -135,7 +135,7 @@ TEST:
 BEGIN {
     package Log::Lager::CommandResult;
 BEGIN {
-  $Log::Lager::CommandResult::VERSION = '0.03.02';
+  $Log::Lager::CommandResult::VERSION = '0.04';
 }
     use overload '""' => 'as_string';
 
@@ -256,7 +256,7 @@ BEGIN {
 BEGIN {
     package Log::Lager::Mask;
 BEGIN {
-  $Log::Lager::Mask::VERSION = '0.03.02';
+  $Log::Lager::Mask::VERSION = '0.04';
 }
     use overload '""' => 'as_string';
     use constant GROUP_PAIRS => (
@@ -379,7 +379,7 @@ BEGIN {
 BEGIN {
     package Log::Lager::Command;
 BEGIN {
-  $Log::Lager::Command::VERSION = '0.03.02';
+  $Log::Lager::Command::VERSION = '0.04';
 }
 
 =pod
@@ -576,7 +576,7 @@ Log::Lager::CommandParser
 
 =head1 VERSION
 
-version 0.03.02
+version 0.04
 
 =head1 SYNOPSIS
 

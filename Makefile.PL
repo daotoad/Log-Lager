@@ -39,7 +39,7 @@ my %WriteMakefileArgs = (
     'constant' => '0',
     'overload' => '0'
   },
-  'VERSION' => '0.03.02',
+  'VERSION' => '0.04',
   'test' => {
     'TESTS' => 't/*.t t/CommandParser/*.t t/Message/*.t'
   }
