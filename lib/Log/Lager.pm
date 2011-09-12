@@ -8,6 +8,7 @@ use Carp qw( croak );
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
 use JSON::XS;
+use IO::Handle;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
@@ -415,7 +416,7 @@ sub _handle_message {
 # Output type specific handlers
 sub _output_stderr {
     my ($level, $message) = @_;
-    warn "$message\n";
+    STDERR->printflush( "$message" );
     return;
 }
 
