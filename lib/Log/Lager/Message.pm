@@ -27,6 +27,7 @@ use constant _RW_ATTR => qw(
     want_stack
     expanded_format
     return_values
+    return_exception
 );
 
 use constant {
