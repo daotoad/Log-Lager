@@ -23,6 +23,7 @@ requires:
   Exporter: 0
   Hash::Util: 0
   IO::File: 0
+  IO::Handle: 0
   JSON::XS: 0
   Scalar::Util: 0
   Sys::Hostname: 0
@@ -30,4 +31,4 @@ requires:
   Time::HiRes: 0
   constant: 0
   overload: 0
-version: 0.04
+version: 0.04.01

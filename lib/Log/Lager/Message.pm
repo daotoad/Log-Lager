@@ -1,6 +1,6 @@
 package Log::Lager::Message;
 BEGIN {
-  $Log::Lager::Message::VERSION = '0.04';
+  $Log::Lager::Message::VERSION = '0.04.01';
 }
 use strict;
 use warnings;
@@ -30,6 +30,7 @@ use constant _RW_ATTR => qw(
     want_stack
     expanded_format
     return_values
+    return_exception
 );
 
 use constant {
@@ -187,7 +188,7 @@ sub _callstack {
         my @args;
         {   package DB;
 BEGIN {
-  $DB::VERSION = '0.04';
+  $DB::VERSION = '0.04.01';
 } 
             @env  = caller($level); 
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
@@ -334,7 +335,7 @@ Log::Lager::Message
 
 =head1 VERSION
 
-version 0.04
+version 0.04.01
 
 =head1 SYNOPSIS
 

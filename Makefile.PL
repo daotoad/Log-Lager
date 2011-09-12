@@ -31,6 +31,7 @@ my %WriteMakefileArgs = (
     'Exporter' => '0',
     'Hash::Util' => '0',
     'IO::File' => '0',
+    'IO::Handle' => '0',
     'JSON::XS' => '0',
     'Scalar::Util' => '0',
     'Sys::Hostname' => '0',
@@ -39,7 +40,7 @@ my %WriteMakefileArgs = (
     'constant' => '0',
     'overload' => '0'
   },
-  'VERSION' => '0.04',
+  'VERSION' => '0.04.01',
   'test' => {
     'TESTS' => 't/*.t t/CommandParser/*.t t/Message/*.t'
   }

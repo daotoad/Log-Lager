@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.04';
+  $Log::Lager::VERSION = '0.04.01';
 }
 
 use Data::Dumper;
@@ -11,6 +11,7 @@ use Carp qw( croak );
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
 use JSON::XS;
+use IO::Handle;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
@@ -343,10 +344,6 @@ sub _handle_message {
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
 
-    return if !$on_bit && !defined wantarray;
-
-    my $formatter = $pretty_bit ? \&_pretty_formatter : \&_compact_formatter;
-
     # Get raw messages from either callback or @_
     my @messages;
     {   no warnings 'uninitialized';
@@ -354,6 +351,7 @@ sub _handle_message {
         if( @_ == 1 
             && reftype($_[0]) eq 'CODE'
         ) {
+            return if !$on_bit;
             @messages = $_[0]->();
         }
         else {
@@ -363,6 +361,7 @@ sub _handle_message {
 
     my $msg;
     my @return_values;
+    my $return_exception;
     # Is @messages a single entry of type Log::Lager::Message? - 
     if( eval {
         @messages == 1
@@ -383,8 +382,10 @@ sub _handle_message {
 
         my $rv = $msg->return_values;
         @return_values = @$rv if ref($rv) eq 'ARRAY';
+        $return_exception = $msg->return_exception;
     }
     else {
+        return if !$on_bit;
         $msg = $DEFAULT_MESSAGE_CLASS->new(
             context         => 0,
             loglevel        => $MASK_CHARS{$level}[FUNCTION],
@@ -409,6 +410,7 @@ sub _handle_message {
         load_config_file();
     }
 
+    die $return_exception    if defined $return_exception;
     return                   if !defined wantarray;
     return @return_values    if wantarray;
     return $return_values[0] if @return_values <= 1;
@@ -418,7 +420,7 @@ sub _handle_message {
 # Output type specific handlers
 sub _output_stderr {
     my ($level, $message) = @_;
-    warn "$message\n";
+    STDERR->printflush( "$message" );
     return;
 }
 
@@ -624,7 +626,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.04
+version 0.04.01
 
 =head1 SYNOPSIS
 
