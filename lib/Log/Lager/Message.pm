@@ -197,7 +197,7 @@ sub _callstack {
             package    => $env[PACKAGE   ],
             line       => $env[LINE_NO   ],
             sub        => $env[SUBROUTINE],
-            wantarry   => $env[WANT_ARRAY],
+            wantarray  => $env[WANT_ARRAY],
         }; 
 
         $level++;
