@@ -1,4 +1,7 @@
 package Log::Lager;
+{
+  $Log::Lager::VERSION = '0.04.02';
+}
 
 use Data::Dumper;
 
@@ -621,6 +624,10 @@ unimport
 
 Log::Lager - Easy to use, flexible, parsable logs.
 
+=head1 VERSION
+
+version 0.04.02
+
 =head1 SYNOPSIS
 
 This modules provides serveral unique features: orthogonal configuration of
@@ -963,5 +970,3 @@ C<join ''>.
 Prepends each message with a time stamp and the log level.  The argument list
 is passed to Data::Dumper for processing.  Each item passed in will be dumped
 on its own line.
-
-

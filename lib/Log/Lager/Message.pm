@@ -1,4 +1,7 @@
 package Log::Lager::Message;
+{
+  $Log::Lager::Message::VERSION = '0.04.02';
+}
 use strict;
 use warnings;
 use Carp qw<croak>;
@@ -183,7 +186,10 @@ sub _callstack {
     while (1) {
         my @env;
         my @args;
-        {   package DB; 
+        {   package DB;
+{
+  $DB::VERSION = '0.04.02';
+} 
             @env  = caller($level); 
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
         }
@@ -327,13 +333,11 @@ sub _timestamp {
 
 Log::Lager::Message
 
+=head1 VERSION
+
+version 0.04.02
+
 =head1 SYNOPSIS
 
 
 =head1 DESCRIPTION
-
-
-
-
-
-
