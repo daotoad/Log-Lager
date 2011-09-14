@@ -359,11 +359,17 @@ sub _handle_message {
     my $msg;
     my @return_values;
     my $return_exception;
-    # Is @messages a single entry of type Log::Lager::Message? - 
+    # Is @messages a single entry of type Log::Lager::Message?
     if( eval {
         @messages == 1
         && $messages[0]->isa('Log::Lager::Message')
     }) {
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper \@messages );
+        }
+
         $msg = $messages[0];
         $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] )
             unless $msg->loglevel;
@@ -374,12 +380,22 @@ sub _handle_message {
         $obj_want_stack = $stack_bit
             unless defined $obj_want_stack;
 
-        $msg->callstack
-            if $obj_want_stack;
+        $msg->callstack( $msg->_callstack )
+            if (
+                    $obj_want_stack
+            and not $msg->callstack
+            );
 
         my $rv = $msg->return_values;
         @return_values = @$rv if ref($rv) eq 'ARRAY';
         $return_exception = $msg->return_exception;
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Finished processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper $msg );
+        }
+
+
     }
     else {
         return if !$on_bit;

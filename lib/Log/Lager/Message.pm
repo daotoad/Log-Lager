@@ -16,7 +16,6 @@ use constant _RO_ATTR => qw(
     process_id
     thread_id
     timestamp
-    callstack
     subroutine
     package
     file_name
@@ -25,6 +24,7 @@ use constant _RO_ATTR => qw(
 use constant _RW_ATTR => qw(
     loglevel
     want_stack
+    callstack
     expanded_format
     return_values
     return_exception
@@ -50,7 +50,10 @@ my $HOSTNAME = Sys::Hostname::hostname();
 BEGIN {     # Install attribute methods.
 
     for my $attr ( _RO_ATTR ) {
-        my $sub = sub { $_[0]->{$attr} };
+        my $sub = sub {
+            return unless exists $_[0]->{$attr};
+            $_[0]->{$attr}
+        };
         no strict 'refs';
         *{$attr} = $sub;
     }
@@ -65,6 +68,7 @@ BEGIN {     # Install attribute methods.
                 lock_hash( %$self );
             }
 
+            return unless exists $self->{$attr};
             $self->{$attr};
         };
         no strict 'refs';
@@ -147,6 +151,8 @@ sub _init {
         }
     }
 
+    $self->{context} = 0 unless defined $self->{context};
+
 }
 
 sub _adjust_call_stack_level {
@@ -165,7 +171,7 @@ sub _clip_string {
     my $l = length $_[0];
 
     return $_[0] unless $l > 25;
-    
+
     my $h = substr $_[0], 0, 12;  
     my $t = substr $_[0], -11;
 
@@ -183,12 +189,13 @@ sub _callstack {
     while (1) {
         my @env;
         my @args;
-        {   package DB; 
-            @env  = caller($level); 
+        {   package DB;
+            @env  = caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
         }
         last unless defined $env[0];
 
+        no warnings 'uninitialized';
         push @stack, {
             args => [ map _clip_string($_),
                       map "$_", @args
@@ -198,10 +205,10 @@ sub _callstack {
             line       => $env[LINE_NO   ],
             sub        => $env[SUBROUTINE],
             wantarray  => $env[WANT_ARRAY],
-        }; 
+        };
 
         $level++;
-    } 
+    }
 
     \@stack;
 }
