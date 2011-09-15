@@ -103,7 +103,7 @@ sub _init {
     $self->{process_id}  = $arg{process_id} || $$;
     $self->{thread_id}   = $arg{thread_id}  || _thread_id();
 
-    $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
+    $self->{timestamp}   = $self->_to_timestamp($arg{timestamp}  || () );
 
     $self->{expanded_format} = defined $arg{expanded_format}
                              ? $arg{expanded_format}
@@ -314,7 +314,7 @@ sub format {
 }
 
 
-sub _timestamp {
+sub _to_timestamp {
     shift;
     my $time = shift || time;
 
@@ -325,7 +325,7 @@ sub _timestamp {
     $year += 1900;
     $mon++;
 
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d.%03d Z", $year, $mon, $mday, $hour, $min, $sec, $millis;
+    return sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", $year, $mon, $mday, $hour, $min, $sec, $millis;
 }
 
 1;
