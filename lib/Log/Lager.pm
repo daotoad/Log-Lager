@@ -57,6 +57,7 @@ my @LOG_LEVELS = (
     [ D => DEBUG => 0x10, 'LOG_DEBUG'   ],
     [ T => TRACE => 0x20, 'LOG_DEBUG'   ],
     [ G => GUTS  => 0x40, 'LOG_DEBUG'   ],
+    [ U => UGLY  => 0x80, 'LOG_DEBUG'   ],
 );
 
 use constant {  # Number of bits to left shift for access to different parts of config mask.
@@ -775,7 +776,7 @@ functions.
 
 ALWAYS exports log level functions:
 
-    FATAL ERROR WARN INFO DEBUG TRACE GUTS
+    FATAL ERROR WARN INFO DEBUG TRACE GUTS UGLY
 
 Mnemonic: Finding essentia will increase devotion to goats.
 
@@ -832,6 +833,12 @@ Disabled by default.
 =head2 GUTS
 
 Use this to log minutia and dump data structures at the most fine grained level.
+
+Disabled by default.
+
+=head2 UGLY
+
+Use this to tag things that are horrible hacks that need to be removed soon, but MUST be lived with, for now.
 
 Disabled by default.
 

@@ -258,7 +258,7 @@ BEGIN {
     );
     use constant GROUPS => map @$_, GROUP_PAIRS;
     our $GROUP_REGEX = join '|', GROUPS;
-    use constant MASK_CHARS => qw( F E W I D T G );
+    use constant MASK_CHARS => qw( F E W I D T G U );
     our $MASK_REGEX = join '', MASK_CHARS;
 
 
