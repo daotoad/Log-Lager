@@ -1,10 +1,10 @@
 BEGIN MESSAGE
 [
    [
-      "2011-09-12 22:44:52.436 Z",
+      "2011-09-15 21:13:10.527 Z",
       "GUTS",
       "jolt.sea",
-      17664,
+      4882,
       0,
       "t/03-lexical_loglevels.t",
       "(eval 145)",
@@ -23,7 +23,7 @@ BEGIN MESSAGE
             "line": 10,
             "package": "_My_::Test",
             "sub": "Log::Lager::__ANON__",
-            "wantarry": null
+            "wantarray": null
          },
          {
             "args": [],
@@ -31,7 +31,7 @@ BEGIN MESSAGE
             "line": 7,
             "package": "_My_::Test",
             "sub": "_My_::Test::log_me",
-            "wantarry": null
+            "wantarray": null
          },
          {
             "args": [],
@@ -39,7 +39,7 @@ BEGIN MESSAGE
             "line": 104,
             "package": "main",
             "sub": "(eval)",
-            "wantarry": ""
+            "wantarray": ""
          },
          {
             "args": [
@@ -50,7 +50,7 @@ BEGIN MESSAGE
             "line": 66,
             "package": "main",
             "sub": "main::exec_loglevel",
-            "wantarry": ""
+            "wantarray": ""
          },
          {
             "args": [],
@@ -58,17 +58,17 @@ BEGIN MESSAGE
             "line": 57,
             "package": "main",
             "sub": "main::run_test_group",
-            "wantarry": null
+            "wantarray": null
          }
       ]
    }
 ]
 Exception thrown - [
    [
-      "2011-09-12 22:44:52.436 Z",
+      "2011-09-15 21:13:10.527 Z",
       "GUTS",
       "jolt.sea",
-      17664,
+      4882,
       0,
       "t/03-lexical_loglevels.t",
       "(eval 145)",
@@ -87,7 +87,7 @@ Exception thrown - [
             "line": 10,
             "package": "_My_::Test",
             "sub": "Log::Lager::__ANON__",
-            "wantarry": null
+            "wantarray": null
          },
          {
             "args": [],
@@ -95,7 +95,7 @@ Exception thrown - [
             "line": 7,
             "package": "_My_::Test",
             "sub": "_My_::Test::log_me",
-            "wantarry": null
+            "wantarray": null
          },
          {
             "args": [],
@@ -103,7 +103,7 @@ Exception thrown - [
             "line": 104,
             "package": "main",
             "sub": "(eval)",
-            "wantarry": ""
+            "wantarray": ""
          },
          {
             "args": [
@@ -114,7 +114,7 @@ Exception thrown - [
             "line": 66,
             "package": "main",
             "sub": "main::exec_loglevel",
-            "wantarry": ""
+            "wantarray": ""
          },
          {
             "args": [],
@@ -122,7 +122,7 @@ Exception thrown - [
             "line": 57,
             "package": "main",
             "sub": "main::run_test_group",
-            "wantarry": null
+            "wantarray": null
          }
       ]
    }
