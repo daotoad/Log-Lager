@@ -144,6 +144,7 @@ BEGIN {
             syslog_identity  => undef,
             syslog_facility  => undef,
             file_name        => undef,
+            file_perm        => undef,
             output           => undef,
             lexicals_enabled => undef,
             message_object   => undef,
@@ -160,6 +161,7 @@ BEGIN {
     sub syslog_facility  { my $self = shift; $self->{syslog_facility}  = shift if @_; $self->{syslog_facility}  }
     sub syslog_identity  { my $self = shift; $self->{syslog_identity}  = shift if @_; $self->{syslog_identity}  }
     sub file_name        { my $self = shift; $self->{file_name} = shift if @_;        $self->{file_name}        }
+    sub file_perm        { my $self = shift; $self->{file_perm} = shift if @_;        $self->{file_perm}        }
     sub output           { my $self = shift; $self->{output} = shift if @_;           $self->{output}           }
     sub message_object   { my $self = shift; $self->{message_object} = shift if @_;   $self->{message_object} }
 
@@ -228,7 +230,12 @@ BEGIN {
 
         my $output = $self->output;
         my $out_string = ! defined $output ? ''
-                       : $output eq 'file'   ?  join(' ', 'file', $self->file_name)
+                       : $output eq 'file'   ?  join(' ', 'file', $self->file_name,
+                                                          ( defined $self->file_perm
+                                                            ? ( fileperm => $self->file_perm )
+                                                            : ()
+                                                          )
+                                                    )
                        : $output eq 'syslog' ?  join(' ', 'syslog', $self->syslog_identity, $self->syslog_facility)
                        : 'stderr';
 
@@ -420,6 +427,10 @@ message_config -> message \s+ (Some::Module::Name)
             [ \&match_filename,      \&set_file_out,        'start'                 ],
         ],
 
+        want_fileperm => [
+            [ \&match_fileperm,      \&set_file_perm,       'start'                 ],
+        ],
+
         want_syslog_ident => [
             [ \&match_filename,       \&set_syslog_ident,    'want_syslog_facility' ],
         ],
@@ -483,16 +494,18 @@ message_config -> message \s+ (Some::Module::Name)
         return;
     }
 
-    sub match_output_control { /stderr|syslog|file/ }
+    sub match_output_control { /stderr|syslog|file|fileperm/ }
     sub select_output_mode {
         my $cp = shift;
+        return if $_ eq 'fileperm';
         $cp->result->output($_);
         return;
     }
     sub get_output_state {
-        return /stderr/ ? 'start'
-             : /syslog/ ? 'want_syslog_ident'
-             : /file/   ? 'want_filename'
+        return /stderr/   ? 'start'
+             : /syslog/   ? 'want_syslog_ident'
+             : /file/     ? 'want_filename'
+             : /fileperm/ ? 'want_fileperm'
              : undef;
     }
 
@@ -528,6 +541,13 @@ message_config -> message \s+ (Some::Module::Name)
     sub set_file_out {
         my $cp = shift;
         $cp->result->file_name($_);
+        return;
+    }
+
+    sub match_fileperm { /^[0-8][0-8][0-8]+$/ }
+    sub set_file_perm {
+        my $cp = shift;
+        $cp->result->file_perm($_);
         return;
     }
 
@@ -592,6 +612,8 @@ Collects the results of parsing a command.
  syslog_identity  - Contains the identity string for syslog output.
  syslog_facility  - Contains the facility name for syslog output.
  file_name        - Contains the name of the file to append log messages to.
+ file_perm        - Contains the permissions of the log file if we log to file.
+
 
 
 =head2 Mask
