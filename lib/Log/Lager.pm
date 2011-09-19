@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.04.03';
+  $Log::Lager::VERSION = '0.04.04';
 }
 
 use Data::Dumper;
@@ -37,11 +37,12 @@ our $SYSLOG_FACILITY;    # Facility if using syslog output
 our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 
 our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
+our $OUTPUT_FILE_PERM;   # File name of for output if using file output.
 our $OUTPUT_FILE_HANDLE; # File handle if using file output.
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 our $PREVIOUS_CONFIG_FILE = '';
-our $CONFIG_LOAD_TIME = 0;
+our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
@@ -86,7 +87,7 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-our @DEFAULT = qw( base enable FEW fatal F lexon stderr );
+our @DEFAULT = qw( base enable FEW fatal F lexon stderr fileperm 644 );
 _parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
@@ -188,10 +189,12 @@ sub _configure_output {
     }
     elsif( $OUTPUT_TARGET eq 'file' ) {
         require IO::File;
-        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>' )
-            or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
 
         $OUTPUT_FUNCTION = $OUTPUT_FILE_HANDLE ? \&_output_file : \&_output_stderr;
+
+        # Delay logging error until output falls back on STDERR.
+        $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
     }
     elsif( $OUTPUT_TARGET eq 'syslog' ) {
         require Sys::Syslog;
@@ -286,6 +289,7 @@ sub _parse_commands {
         $SYSLOG_FACILITY  = $result->syslog_facility;
         $SYSLOG_IDENTITY  = $result->syslog_identity;
         $OUTPUT_FILE_NAME = $result->file_name;
+        $OUTPUT_FILE_PERM =  oct( $result->file_perm || '644' );
         _configure_output();
     }
 
@@ -508,7 +512,7 @@ sub load_config_file {
         return;
     }
 
-    eval { 
+    eval {
         apply_command( @lines );
         1;
     }
@@ -615,6 +619,7 @@ sub log_level {
     $r->syslog_identity( $SYSLOG_IDENTITY );
     $r->syslog_facility( $SYSLOG_FACILITY );
     $r->file_name( $OUTPUT_FILE_NAME );
+    $r->file_perm( sprintf "%O", $OUTPUT_FILE_PERM );
 
     $r->lexicals_enabled( $ENABLE_LEXICAL );
 
@@ -643,7 +648,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.04.03
+version 0.04.04
 
 =head1 SYNOPSIS
 

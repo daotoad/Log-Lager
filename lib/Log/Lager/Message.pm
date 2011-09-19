@@ -1,6 +1,6 @@
 package Log::Lager::Message;
 BEGIN {
-  $Log::Lager::Message::VERSION = '0.04.03';
+  $Log::Lager::Message::VERSION = '0.04.04';
 }
 use strict;
 use warnings;
@@ -106,7 +106,7 @@ sub _init {
     $self->{process_id}  = $arg{process_id} || $$;
     $self->{thread_id}   = $arg{thread_id}  || _thread_id();
 
-    $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
+    $self->{timestamp}   = $self->_to_timestamp($arg{timestamp}  || () );
 
     $self->{expanded_format} = defined $arg{expanded_format}
                              ? $arg{expanded_format}
@@ -194,7 +194,7 @@ sub _callstack {
         my @args;
         {   package DB;
 BEGIN {
-  $DB::VERSION = '0.04.03';
+  $DB::VERSION = '0.04.04';
 }
             @env  = caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
@@ -320,7 +320,7 @@ sub format {
 }
 
 
-sub _timestamp {
+sub _to_timestamp {
     shift;
     my $time = shift || time;
 
@@ -331,7 +331,7 @@ sub _timestamp {
     $year += 1900;
     $mon++;
 
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d.%03d Z", $year, $mon, $mday, $hour, $min, $sec, $millis;
+    return sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", $year, $mon, $mday, $hour, $min, $sec, $millis;
 }
 
 1;
@@ -342,7 +342,7 @@ Log::Lager::Message
 
 =head1 VERSION
 
-version 0.04.03
+version 0.04.04
 
 =head1 SYNOPSIS
 
