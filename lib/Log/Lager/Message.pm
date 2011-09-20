@@ -1,6 +1,6 @@
 package Log::Lager::Message;
 BEGIN {
-  $Log::Lager::Message::VERSION = '0.04.04';
+  $Log::Lager::Message::VERSION = '0.04.05';
 }
 use strict;
 use warnings;
@@ -194,7 +194,7 @@ sub _callstack {
         my @args;
         {   package DB;
 BEGIN {
-  $DB::VERSION = '0.04.04';
+  $DB::VERSION = '0.04.05';
 }
             @env  = caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
@@ -342,7 +342,7 @@ Log::Lager::Message
 
 =head1 VERSION
 
-version 0.04.04
+version 0.04.05
 
 =head1 SYNOPSIS
 

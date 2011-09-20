@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.04.04';
+  $Log::Lager::VERSION = '0.04.05';
 }
 
 use Data::Dumper;
@@ -648,7 +648,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.04.04
+version 0.04.05
 
 =head1 SYNOPSIS
 

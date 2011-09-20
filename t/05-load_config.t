@@ -11,7 +11,10 @@ use Log::Lager 'FEWIDTGU';
 
 {  # Default conditions.
     my $log_level =  Log::Lager::log_level();
-    like( $log_level, qr/lexical enable FEWIDTGU/,       'Lexical settings correct'      );
+SKIP: {
+        skip 'Ancient Perl\'s lexicality is limited.' if $] < 5.009;
+        like( $log_level, qr/lexical enable FEWIDTGU/,       'Lexical settings correct'      );
+    }
     like( $log_level, qr/base enable FEW disable IDTGU/, 'Default base settings correct' );
 }
 

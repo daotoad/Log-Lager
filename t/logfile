@@ -1,10 +1,10 @@
 BEGIN MESSAGE
 [
    [
-      "2011-09-17T01:02:35.325Z",
+      "2011-09-20T00:31:08.805Z",
       "GUTS",
       "jolt.sea",
-      12689,
+      26623,
       0,
       "t/03-lexical_loglevels.t",
       "(eval 145)",
@@ -65,10 +65,10 @@ BEGIN MESSAGE
 ]
 Exception thrown - [
    [
-      "2011-09-17T01:02:35.325Z",
+      "2011-09-20T00:31:08.805Z",
       "GUTS",
       "jolt.sea",
-      12689,
+      26623,
       0,
       "t/03-lexical_loglevels.t",
       "(eval 145)",
