@@ -11,8 +11,8 @@ use Log::Lager 'FEWIDTGU';
 
 {  # Default conditions.
     my $log_level =  Log::Lager::log_level();
-SKIP: {
-        skip 'Ancient Perl\'s lexicality is limited.' if $] < 5.009;
+    SKIP: {
+        skip "Ancient Perl's lexicality is limited.", 1 if $] < 5.009;
         like( $log_level, qr/lexical enable FEWIDTGU/,       'Lexical settings correct'      );
     }
     like( $log_level, qr/base enable FEW disable IDTGU/, 'Default base settings correct' );
@@ -22,7 +22,7 @@ SKIP: {
 my $cfgh = File::Temp->new();
 my $cfg_name = $cfgh->filename;
 
-write_config_file( $cfgh, <<'CFG' );
+write_config_file( $cfg_name, <<'CFG' );
 base enable FEWI
 nonfatal FEWIDTGU
 compact FEWIDTGU
@@ -41,7 +41,7 @@ CFG
     warn $log_level;
 }
 
-write_config_file( $cfgh, <<'CFG' );
+write_config_file( $cfg_name, <<'CFG' );
 base enable   FEWID
      fatal    FEWU
      nonfatal IDTG
@@ -63,8 +63,10 @@ CFG
 }
 
 sub write_config_file {
-    my $fh =  shift;
-    $fh->seek( 0, 0 );
-    $fh->printflush( @_ );
+    my $name =  shift;
+    my $fh;
+    open($fh, ">", $name) or die "Couldn't write to config file: $!\n";
+    print $fh @_;
+    close $fh;
 }
 
