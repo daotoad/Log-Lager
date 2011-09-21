@@ -22,7 +22,7 @@ my @COMMAND = (
      'sub Foo::Bar::quix',
      'package Foo::Bar::Baz enable FEWI fatal F',
      'stderr',
-     'file  /potato/soup/is/vicious',
+     'file  /potato/soup/is/vicious fileperm 644',
 );
 
 my $r;

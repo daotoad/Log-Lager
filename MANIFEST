@@ -15,6 +15,7 @@ t/01-load.t
 t/02-basic_usage.t
 t/03-lexical_loglevels.t
 t/04-bitmask.t
+t/05-load_config.t
 t/CommandParser/01-load.t
 t/CommandParser/02-parse.t
 t/Message/01-load.t

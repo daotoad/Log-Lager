@@ -1,6 +1,6 @@
 package Log::Lager;
 {
-  $Log::Lager::VERSION = '0.04.02';
+  $Log::Lager::VERSION = '0.04.05';
 }
 
 use Data::Dumper;
@@ -37,11 +37,12 @@ our $SYSLOG_FACILITY;    # Facility if using syslog output
 our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 
 our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
+our $OUTPUT_FILE_PERM;   # File name of for output if using file output.
 our $OUTPUT_FILE_HANDLE; # File handle if using file output.
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 our $PREVIOUS_CONFIG_FILE = '';
-our $CONFIG_LOAD_TIME = 0;
+our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
 
@@ -60,6 +61,7 @@ my @LOG_LEVELS = (
     [ D => DEBUG => 0x10, 'LOG_DEBUG'   ],
     [ T => TRACE => 0x20, 'LOG_DEBUG'   ],
     [ G => GUTS  => 0x40, 'LOG_DEBUG'   ],
+    [ U => UGLY  => 0x80, 'LOG_DEBUG'   ],
 );
 
 use constant {  # Number of bits to left shift for access to different parts of config mask.
@@ -85,7 +87,7 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-our @DEFAULT = qw( base enable FEW fatal F lexon stderr );
+our @DEFAULT = qw( base enable FEW fatal F lexon stderr fileperm 644 );
 _parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
@@ -187,10 +189,12 @@ sub _configure_output {
     }
     elsif( $OUTPUT_TARGET eq 'file' ) {
         require IO::File;
-        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>' )
-            or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
 
         $OUTPUT_FUNCTION = $OUTPUT_FILE_HANDLE ? \&_output_file : \&_output_stderr;
+
+        # Delay logging error until output falls back on STDERR.
+        $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
     }
     elsif( $OUTPUT_TARGET eq 'syslog' ) {
         require Sys::Syslog;
@@ -285,6 +289,7 @@ sub _parse_commands {
         $SYSLOG_FACILITY  = $result->syslog_facility;
         $SYSLOG_IDENTITY  = $result->syslog_identity;
         $OUTPUT_FILE_NAME = $result->file_name;
+        $OUTPUT_FILE_PERM =  oct( $result->file_perm || '644' );
         _configure_output();
     }
 
@@ -362,11 +367,17 @@ sub _handle_message {
     my $msg;
     my @return_values;
     my $return_exception;
-    # Is @messages a single entry of type Log::Lager::Message? - 
+    # Is @messages a single entry of type Log::Lager::Message?
     if( eval {
         @messages == 1
         && $messages[0]->isa('Log::Lager::Message')
     }) {
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper \@messages );
+        }
+
         $msg = $messages[0];
         $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] )
             unless $msg->loglevel;
@@ -377,12 +388,22 @@ sub _handle_message {
         $obj_want_stack = $stack_bit
             unless defined $obj_want_stack;
 
-        $msg->callstack
-            if $obj_want_stack;
+        $msg->callstack( $msg->_callstack )
+            if (
+                    $obj_want_stack
+            and not $msg->callstack
+            );
 
         my $rv = $msg->return_values;
         @return_values = @$rv if ref($rv) eq 'ARRAY';
         $return_exception = $msg->return_exception;
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Finished processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper $msg );
+        }
+
+
     }
     else {
         return if !$on_bit;
@@ -491,7 +512,7 @@ sub load_config_file {
         return;
     }
 
-    eval { 
+    eval {
         apply_command( @lines );
         1;
     }
@@ -598,6 +619,7 @@ sub log_level {
     $r->syslog_identity( $SYSLOG_IDENTITY );
     $r->syslog_facility( $SYSLOG_FACILITY );
     $r->file_name( $OUTPUT_FILE_NAME );
+    $r->file_perm( sprintf "%O", $OUTPUT_FILE_PERM );
 
     $r->lexicals_enabled( $ENABLE_LEXICAL );
 
@@ -626,7 +648,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.04.02
+version 0.04.05
 
 =head1 SYNOPSIS
 
@@ -766,7 +788,7 @@ functions.
 
 ALWAYS exports log level functions:
 
-    FATAL ERROR WARN INFO DEBUG TRACE GUTS
+    FATAL ERROR WARN INFO DEBUG TRACE GUTS UGLY
 
 Mnemonic: Finding essentia will increase devotion to goats.
 
@@ -823,6 +845,12 @@ Disabled by default.
 =head2 GUTS
 
 Use this to log minutia and dump data structures at the most fine grained level.
+
+Disabled by default.
+
+=head2 UGLY
+
+Use this to tag things that are horrible hacks that need to be removed soon, but MUST be lived with, for now.
 
 Disabled by default.
 

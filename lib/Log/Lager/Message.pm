@@ -1,6 +1,6 @@
 package Log::Lager::Message;
 {
-  $Log::Lager::Message::VERSION = '0.04.02';
+  $Log::Lager::Message::VERSION = '0.04.05';
 }
 use strict;
 use warnings;
@@ -19,7 +19,6 @@ use constant _RO_ATTR => qw(
     process_id
     thread_id
     timestamp
-    callstack
     subroutine
     package
     file_name
@@ -28,6 +27,7 @@ use constant _RO_ATTR => qw(
 use constant _RW_ATTR => qw(
     loglevel
     want_stack
+    callstack
     expanded_format
     return_values
     return_exception
@@ -53,7 +53,10 @@ my $HOSTNAME = Sys::Hostname::hostname();
 BEGIN {     # Install attribute methods.
 
     for my $attr ( _RO_ATTR ) {
-        my $sub = sub { $_[0]->{$attr} };
+        my $sub = sub {
+            return unless exists $_[0]->{$attr};
+            $_[0]->{$attr}
+        };
         no strict 'refs';
         *{$attr} = $sub;
     }
@@ -68,6 +71,7 @@ BEGIN {     # Install attribute methods.
                 lock_hash( %$self );
             }
 
+            return unless exists $self->{$attr};
             $self->{$attr};
         };
         no strict 'refs';
@@ -102,7 +106,7 @@ sub _init {
     $self->{process_id}  = $arg{process_id} || $$;
     $self->{thread_id}   = $arg{thread_id}  || _thread_id();
 
-    $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
+    $self->{timestamp}   = $self->_to_timestamp($arg{timestamp}  || () );
 
     $self->{expanded_format} = defined $arg{expanded_format}
                              ? $arg{expanded_format}
@@ -150,6 +154,8 @@ sub _init {
         }
     }
 
+    $self->{context} = 0 unless defined $self->{context};
+
 }
 
 sub _adjust_call_stack_level {
@@ -168,7 +174,7 @@ sub _clip_string {
     my $l = length $_[0];
 
     return $_[0] unless $l > 25;
-    
+
     my $h = substr $_[0], 0, 12;  
     my $t = substr $_[0], -11;
 
@@ -188,13 +194,14 @@ sub _callstack {
         my @args;
         {   package DB;
 {
-  $DB::VERSION = '0.04.02';
-} 
-            @env  = caller($level); 
+  $DB::VERSION = '0.04.05';
+}
+            @env  = caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
         }
         last unless defined $env[0];
 
+        no warnings 'uninitialized';
         push @stack, {
             args => [ map _clip_string($_),
                       map "$_", @args
@@ -204,10 +211,10 @@ sub _callstack {
             line       => $env[LINE_NO   ],
             sub        => $env[SUBROUTINE],
             wantarray  => $env[WANT_ARRAY],
-        }; 
+        };
 
         $level++;
-    } 
+    }
 
     \@stack;
 }
@@ -313,7 +320,7 @@ sub format {
 }
 
 
-sub _timestamp {
+sub _to_timestamp {
     shift;
     my $time = shift || time;
 
@@ -324,7 +331,7 @@ sub _timestamp {
     $year += 1900;
     $mon++;
 
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d.%03d Z", $year, $mon, $mday, $hour, $min, $sec, $millis;
+    return sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", $year, $mon, $mday, $hour, $min, $sec, $millis;
 }
 
 1;
@@ -335,7 +342,7 @@ Log::Lager::Message
 
 =head1 VERSION
 
-version 0.04.02
+version 0.04.05
 
 =head1 SYNOPSIS
 
