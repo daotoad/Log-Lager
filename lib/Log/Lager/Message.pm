@@ -1,30 +1,36 @@
 package Log::Lager::Message;
 BEGIN {
-  $Log::Lager::Message::VERSION = '0.03.01';
+  $Log::Lager::Message::VERSION = '0.04.06';
 }
 use strict;
 use warnings;
 use Carp qw<croak>;
 use Config qw( %Config );
 
-use Hash::Util qw<lock_hash>;
+use Hash::Util qw<lock_hash unlock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
  
 
-use constant _ATTR => qw(
-    loglevel
+use constant _RO_ATTR => qw(
     message
     hostname
     executable
     process_id
     thread_id
     timestamp
-    callstack
     subroutine
     package
     file_name
     line_number
+);
+use constant _RW_ATTR => qw(
+    loglevel
+    want_stack
+    callstack
+    expanded_format
+    return_values
+    return_exception
 );
 
 use constant {
@@ -46,11 +52,32 @@ my $HOSTNAME = Sys::Hostname::hostname();
 
 BEGIN {     # Install attribute methods.
 
-    for my $attr ( _ATTR ) {
-        my $sub = sub { $_[0]->{$attr} };
+    for my $attr ( _RO_ATTR ) {
+        my $sub = sub {
+            return unless exists $_[0]->{$attr};
+            $_[0]->{$attr}
+        };
         no strict 'refs';
         *{$attr} = $sub;
     }
+
+    for my $attr ( _RW_ATTR ) {
+        my $sub = sub {
+            my $self = shift;
+
+            if( @_ ) {
+                unlock_hash( %$self );
+                $self->{$attr} = shift;
+                lock_hash( %$self );
+            }
+
+            return unless exists $self->{$attr};
+            $self->{$attr};
+        };
+        no strict 'refs';
+        *{$attr} = $sub;
+    }
+
 }
 
 sub new {
@@ -60,7 +87,7 @@ sub new {
     bless $self, $class;
     $self->_init(@_);
     lock_hash %$self;
-    
+
     return $self;
 }
 
@@ -68,7 +95,8 @@ sub _init {
     my $self = shift;
     my %arg = @_;
 
-    $self->{message} = $arg{message} 
+
+    $self->{message} = $arg{message}
         or croak "Attribute message required for Message object.";
 
     $self->{loglevel}    = $arg{loglevel};
@@ -78,18 +106,23 @@ sub _init {
     $self->{process_id}  = $arg{process_id} || $$;
     $self->{thread_id}   = $arg{thread_id}  || _thread_id();
 
-    $self->{timestamp}   = $self->_timestamp($arg{timestamp}  || () );
+    $self->{timestamp}   = $self->_to_timestamp($arg{timestamp}  || () );
 
-    $self->{expanded_format} = defined $arg{expanded_format} 
-                             ? $arg{expanded_format} : 0;
+    $self->{expanded_format} = defined $arg{expanded_format}
+                             ? $arg{expanded_format}
+                             : $self->{expanded_format};
+
+    $self->{want_stack} = defined $arg{want_stack}
+                        ? $arg{want_stack}
+                        : $self->{want_stack};
 
     if( defined $arg{context} ) {
         my $offset = $self->_adjust_call_stack_level($arg{context});
 
         $self->{callstack}
-            = defined $arg{callstack} ? $arg{callstack} 
-            : $arg{want_stack}        ? $self->_callstack($offset) 
-            :                           undef;
+            = defined $arg{callstack}  ? $arg{callstack} 
+            : $self->{want_stack}      ? $self->_callstack($offset)
+            :                            undef;
 
         my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
 
@@ -112,15 +145,17 @@ sub _init {
     }
     else {
         my @attr = qw/package subroutine file_name line_number/;
-        push @attr, 'callstack' if $arg{want_stack};
-        for my $attr (@attr) { 
+        push @attr, 'callstack' if $self->{want_stack};
+        for my $attr (@attr) {
             croak "$attr is required when context is not provided"
                 unless defined $arg{$attr};
 
             $self->{$attr} = $arg{$attr};
         }
     }
-    
+
+    $self->{context} = 0 unless defined $self->{context};
+
 }
 
 sub _adjust_call_stack_level {
@@ -139,16 +174,19 @@ sub _clip_string {
     my $l = length $_[0];
 
     return $_[0] unless $l > 25;
-    
+
     my $h = substr $_[0], 0, 12;  
     my $t = substr $_[0], -11;
 
     "$h...$t";
 }
 
-sub _callstack { 
+sub _callstack {
     my $self = shift;
     my $level = shift;
+
+    $level = $self->{context}
+        unless defined $level;
 
     my @stack;
     while (1) {
@@ -156,26 +194,27 @@ sub _callstack {
         my @args;
         {   package DB;
 BEGIN {
-  $DB::VERSION = '0.03.01';
-} 
-            @env  = caller($level); 
+  $DB::VERSION = '0.04.06';
+}
+            @env  = caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
         }
         last unless defined $env[0];
 
+        no warnings 'uninitialized';
         push @stack, {
-            args => [ map _clip_string($_), 
+            args => [ map _clip_string($_),
                       map "$_", @args
                     ],
             file_name  => $env[FILE_NAME ],
             package    => $env[PACKAGE   ],
             line       => $env[LINE_NO   ],
             sub        => $env[SUBROUTINE],
-            wantarry   => $env[WANT_ARRAY],
-        }; 
+            wantarray  => $env[WANT_ARRAY],
+        };
 
         $level++;
-    } 
+    }
 
     \@stack;
 }
@@ -206,6 +245,7 @@ sub _thread_id {
 {   my $json;
 
     sub _get_compact_json {
+        # Sadly, there isn't a good way to tell this to put on just a trailing newline.
         unless( $json ) {
             $json = JSON::XS->new()
                 or die "Can't create JSON processor";
@@ -248,10 +288,11 @@ sub _header {
 # and applies one to the other.
 sub _general_formatter {
     my $json = shift;
+    my $term = shift;
     my $self = shift;
 
-    my $header  = $self->_header;
-    my $message = $self->message;
+    my $header = $self->_header;
+    my $body   = $self->message;
 
     my @callstack = $self->{callstack} 
                   ? { callstack => $self->{callstack} } : (); 
@@ -259,17 +300,18 @@ sub _general_formatter {
     my $message = $json->encode(
         abridge_items_recursive(
             $header,
-            @{$message},
+            @{$body},
             @callstack,
         )
     );
 
-    return "$message\n";
+    return "$message$term";
 }
 
 # Actual format routines
-sub _compact_formatter   { _general_formatter( _get_compact_json(), @_ )   }
-sub _expanded_formatter  { _general_formatter( _get_expanded_json(),  @_ ) }
+# Sadly, the compact formatter does not append a trailing newline.
+sub _compact_formatter   { _general_formatter( _get_compact_json(), "\n", @_ )   }
+sub _expanded_formatter  { _general_formatter( _get_expanded_json(), "", @_ ) }
 
 sub format {
     my $self = shift;
@@ -278,7 +320,7 @@ sub format {
 }
 
 
-sub _timestamp {
+sub _to_timestamp {
     shift;
     my $time = shift || time;
 
@@ -289,7 +331,7 @@ sub _timestamp {
     $year += 1900;
     $mon++;
 
-    return sprintf "%04d-%02d-%02d %02d:%02d:%02d.%03d Z", $year, $mon, $mday, $hour, $min, $sec, $millis;
+    return sprintf "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", $year, $mon, $mday, $hour, $min, $sec, $millis;
 }
 
 1;
@@ -300,7 +342,7 @@ Log::Lager::Message
 
 =head1 VERSION
 
-version 0.03.01
+version 0.04.06
 
 =head1 SYNOPSIS
 

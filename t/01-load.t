@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 24;
+use Test::More tests => 27;
 
 use_ok( 'Log::Lager' ) or BAIL_OUT('Module under test failed to load');
 
@@ -15,6 +15,7 @@ my @LOG_LEVELS = (
     [ D => DEBUG => 0x10 ],
     [ T => TRACE => 0x20 ],
     [ G => GUTS  => 0x40 ],
+    [ U => UGLY  => 0x80 ],
 );
 
 for ( @LOG_LEVELS ) {
@@ -22,7 +23,7 @@ for ( @LOG_LEVELS ) {
     is( Log::Lager::_bitmask_to_mask_string( $value, 0 ), $char, "Mask for $char correct" );
     is( Log::Lager::_bitmask_to_mask_string( $value<<16, 16  ), $char, "Shifted mask for $char correct" );
 }
-is( Log::Lager::_bitmask_to_mask_string( 0xFF, 0 ), 'FEWIDTG', "Mask for FEWIDTG correct" );
+is( Log::Lager::_bitmask_to_mask_string( 0xFF, 0 ), 'FEWIDTGU', "Mask for FEWIDTGU correct" );
 
 
 
@@ -30,7 +31,7 @@ for ( @LOG_LEVELS ) {
     my ($char, $value) = @{$_}[0,2];
     is( Log::Lager::_mask_string_to_bitmask( $char ), $value, "Mask for $char correct" );
 }
-is( Log::Lager::_mask_string_to_bitmask( 'FEWIDTG' ), 0x7F, "Mask for FEWIDTG correct" );
+is( Log::Lager::_mask_string_to_bitmask( 'FEWIDTGU' ), 0xFF, "Mask for FEWIDTGU correct" );
 
 
 
