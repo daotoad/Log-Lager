@@ -31,4 +31,4 @@ requires:
   Time::HiRes: 0
   constant: 0
   overload: 0
-version: 0.04.05
+version: 0.04.07

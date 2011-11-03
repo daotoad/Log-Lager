@@ -1,6 +1,6 @@
 package Log::Lager;
 BEGIN {
-  $Log::Lager::VERSION = '0.04.05';
+  $Log::Lager::VERSION = '0.04.07';
 }
 
 use Data::Dumper;
@@ -18,8 +18,6 @@ use Log::Lager::Message;
 
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
-
-
 
 # Global configuration
 # === Global mask variables ===
@@ -39,12 +37,16 @@ our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
 our $OUTPUT_FILE_PERM;   # File name of for output if using file output.
 our $OUTPUT_FILE_HANDLE; # File handle if using file output.
+our $OUTPUT_FILE_INODE;  # Inode of the current file handle.
+our $OUTPUT_FILE_CHECK_TIME; # Inode of the current file handle.
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 our $PREVIOUS_CONFIG_FILE = '';
 our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
+use constant STAT_INODE => 1;
+use constant LOG_FILEHANDLE_CHECK_FREQ => 60; # Seconds
 
 # === Configure Log Levels ===
 use constant {      # Indexes of the various elements in the LOG_LEVELS ARRAY
@@ -188,13 +190,8 @@ sub _configure_output {
         $OUTPUT_FUNCTION = \&_output_stderr;
     }
     elsif( $OUTPUT_TARGET eq 'file' ) {
-        require IO::File;
-        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
 
-        $OUTPUT_FUNCTION = $OUTPUT_FILE_HANDLE ? \&_output_file : \&_output_stderr;
-
-        # Delay logging error until output falls back on STDERR.
-        $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+        _open_log_file();
     }
     elsif( $OUTPUT_TARGET eq 'syslog' ) {
         require Sys::Syslog;
@@ -454,11 +451,47 @@ sub _output_syslog {
 
 sub _output_file {
     shift;
+
+    if ( $OUTPUT_FILE_CHECK_TIME + LOG_FILEHANDLE_CHECK_FREQ <= time ) {
+        $OUTPUT_FILE_CHECK_TIME = time;
+
+        my $inode = (stat $OUTPUT_FILE_NAME)[STAT_INODE];
+        $inode = 0 unless $inode;
+
+        if ( ! $OUTPUT_FILE_HANDLE
+            or $OUTPUT_FILE_INODE  != $inode
+        ) {
+            _open_log_file();
+        }
+    }
+
     $OUTPUT_FILE_HANDLE or return &_output_stderr;
+
     $OUTPUT_FILE_HANDLE->printflush( @_ );
     return;
 }
 
+sub _open_log_file {
+
+    require IO::File;
+    my @output_stat = stat($OUTPUT_FILE_NAME);
+    my $file_exists = -e $OUTPUT_FILE_NAME;
+    $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
+
+    if( $OUTPUT_FILE_HANDLE ) {
+
+        @output_stat = stat($OUTPUT_FILE_HANDLE)
+            unless $file_exists;
+
+        $OUTPUT_FILE_INODE = $output_stat[STAT_INODE];
+        $OUTPUT_FILE_CHECK_TIME = time;
+        $OUTPUT_FUNCTION = \&_output_file;
+    }
+
+    # Delay logging error until output falls back on STDERR.
+    $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+
+}
 
 
 # === Logging configuration functions ===
@@ -648,7 +681,7 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 VERSION
 
-version 0.04.05
+version 0.04.07
 
 =head1 SYNOPSIS
 

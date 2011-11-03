@@ -1,4 +1,3 @@
-644
 Changes
 LICENSE
 MANIFEST
@@ -23,3 +22,6 @@ t/Message/01-load.t
 t/logfile
 t/release-pod-coverage.t
 t/release-pod-syntax.t
+test-log-1
+test.log
+test.pl
