@@ -9,3 +9,5 @@ Changes to headers to meet evolving work standards.
 0.02:  2011-05-09
 Initial "de-workified" release.
 
+0.04.07: 2011-11-03
+"file" output now supports common log-rolling behaviors.

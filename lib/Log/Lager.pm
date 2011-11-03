@@ -16,8 +16,6 @@ use Log::Lager::Message;
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
 
-
-
 # Global configuration
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
@@ -44,6 +42,8 @@ our $PREVIOUS_CONFIG_FILE = '';
 our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
 
+use constant STAT_INODE => 1;
+use constant LOG_FILEHANDLE_CHECK_FREQ => 60; # Seconds
 
 # === Configure Log Levels ===
 use constant {      # Indexes of the various elements in the LOG_LEVELS ARRAY
@@ -448,19 +448,21 @@ sub _output_syslog {
 
 sub _output_file {
     shift;
-    $OUTPUT_FILE_HANDLE or return &_output_stderr;
 
-    if ( $OUTPUT_FILE_CHECK_TIME + 60 >= time ) {
+    if ( $OUTPUT_FILE_CHECK_TIME + LOG_FILEHANDLE_CHECK_FREQ <= time ) {
         $OUTPUT_FILE_CHECK_TIME = time;
 
-        my @named_file_info = stat( $OUTPUT_FILE_NAME );
+        my $inode = (stat $OUTPUT_FILE_NAME)[STAT_INODE];
+        $inode = 0 unless $inode;
 
         if ( ! $OUTPUT_FILE_HANDLE
-            or $OUTPUT_FILE_INODE  != $named_file_info[STAT_INODE]
+            or $OUTPUT_FILE_INODE  != $inode
         ) {
             _open_log_file();
         }
     }
+
+    $OUTPUT_FILE_HANDLE or return &_output_stderr;
 
     $OUTPUT_FILE_HANDLE->printflush( @_ );
     return;
@@ -478,12 +480,9 @@ sub _open_log_file {
         @output_stat = stat($OUTPUT_FILE_HANDLE)
             unless $file_exists;
 
-        $OUTPUT_FILE_INODE = $output_stat[STAT_INFO];
+        $OUTPUT_FILE_INODE = $output_stat[STAT_INODE];
         $OUTPUT_FILE_CHECK_TIME = time;
         $OUTPUT_FUNCTION = \&_output_file;
-    }
-    else {
-        $OUTPUT_FUNCTION = \&_output_stderr;
     }
 
     # Delay logging error until output falls back on STDERR.
