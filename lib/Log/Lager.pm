@@ -36,6 +36,8 @@ our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
 our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
 our $OUTPUT_FILE_PERM;   # File name of for output if using file output.
 our $OUTPUT_FILE_HANDLE; # File handle if using file output.
+our $OUTPUT_FILE_INODE;  # Inode of the current file handle.
+our $OUTPUT_FILE_CHECK_TIME; # Inode of the current file handle.
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 our $PREVIOUS_CONFIG_FILE = '';
@@ -185,13 +187,8 @@ sub _configure_output {
         $OUTPUT_FUNCTION = \&_output_stderr;
     }
     elsif( $OUTPUT_TARGET eq 'file' ) {
-        require IO::File;
-        $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
 
-        $OUTPUT_FUNCTION = $OUTPUT_FILE_HANDLE ? \&_output_file : \&_output_stderr;
-
-        # Delay logging error until output falls back on STDERR.
-        $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+        _open_log_file();
     }
     elsif( $OUTPUT_TARGET eq 'syslog' ) {
         require Sys::Syslog;
@@ -452,10 +449,47 @@ sub _output_syslog {
 sub _output_file {
     shift;
     $OUTPUT_FILE_HANDLE or return &_output_stderr;
+
+    if ( $OUTPUT_FILE_CHECK_TIME + 60 >= time ) {
+        $OUTPUT_FILE_CHECK_TIME = time;
+
+        my @named_file_info = stat( $OUTPUT_FILE_NAME );
+
+        if ( ! $OUTPUT_FILE_HANDLE
+            or $OUTPUT_FILE_INODE  != $named_file_info[STAT_INODE]
+        ) {
+            _open_log_file();
+        }
+    }
+
     $OUTPUT_FILE_HANDLE->printflush( @_ );
     return;
 }
 
+sub _open_log_file {
+
+    require IO::File;
+    my @output_stat = stat($OUTPUT_FILE_NAME);
+    my $file_exists = -e $OUTPUT_FILE_NAME;
+    $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
+
+    if( $OUTPUT_FILE_HANDLE ) {
+
+        @output_stat = stat($OUTPUT_FILE_HANDLE)
+            unless $file_exists;
+
+        $OUTPUT_FILE_INODE = $output_stat[STAT_INFO];
+        $OUTPUT_FILE_CHECK_TIME = time;
+        $OUTPUT_FUNCTION = \&_output_file;
+    }
+    else {
+        $OUTPUT_FUNCTION = \&_output_stderr;
+    }
+
+    # Delay logging error until output falls back on STDERR.
+    $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
+
+}
 
 
 # === Logging configuration functions ===
