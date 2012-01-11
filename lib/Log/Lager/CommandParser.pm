@@ -247,7 +247,7 @@ BEGIN {
 
         $message_object = "message $message_object";
 
-        my $string = join ' ', grep length, $mask_string,  $out_string, 
+        my $string = join ' ', grep length, $mask_string,  $out_string,
                                             $lexon_string, $message_object;
 
         return $string;
@@ -411,7 +411,7 @@ message_config -> message \s+ (Some::Module::Name)
 # be a code ref or undef.  Undef indicates a no-op.  If the action is a code ref,
 # the code is called.
 #
-# After the action is completed, we set the state to it new value.  
+# After the action is completed, we set the state to it new value.
     our %STATE_TABLE = (
     #   name       # Array of match/action/transition tuples
         start => [

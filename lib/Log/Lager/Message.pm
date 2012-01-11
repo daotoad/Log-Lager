@@ -7,7 +7,7 @@ use Config qw( %Config );
 use Hash::Util qw<lock_hash unlock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
- 
+
 
 use constant _RO_ATTR => qw(
     message
@@ -117,25 +117,25 @@ sub _init {
         my $offset = $self->_adjust_call_stack_level($arg{context});
 
         $self->{callstack}
-            = defined $arg{callstack}  ? $arg{callstack} 
+            = defined $arg{callstack}  ? $arg{callstack}
             : $self->{want_stack}      ? $self->_callstack($offset)
             :                            undef;
 
         my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
 
-        $self->{subroutine}  = defined $arg{subroutine} 
+        $self->{subroutine}  = defined $arg{subroutine}
                              ? $arg{subroutine}
                              : $sub;
 
-        $self->{package}     = defined $arg{package}    
+        $self->{package}     = defined $arg{package}
                              ? $arg{package}
                              : $pkg;
 
-        $self->{line_number} = defined $arg{line_number}    
+        $self->{line_number} = defined $arg{line_number}
                              ? $arg{line_number}
                              : $line;
 
-        $self->{file_name}   = defined $arg{file_name}    
+        $self->{file_name}   = defined $arg{file_name}
                              ? $arg{file_name}
                              : $file;
 
@@ -172,7 +172,7 @@ sub _clip_string {
 
     return $_[0] unless $l > 25;
 
-    my $h = substr $_[0], 0, 12;  
+    my $h = substr $_[0], 0, 12;
     my $t = substr $_[0], -11;
 
     "$h...$t";
@@ -263,7 +263,7 @@ sub _header {
     my $self = shift;
 
     my $header = [
-        map $self->{$_}, qw/ 
+        map $self->{$_}, qw/
             timestamp
             loglevel
             hostname
@@ -288,8 +288,8 @@ sub _general_formatter {
     my $header = $self->_header;
     my $body   = $self->message;
 
-    my @callstack = $self->{callstack} 
-                  ? { callstack => $self->{callstack} } : (); 
+    my @callstack = $self->{callstack}
+                  ? { callstack => $self->{callstack} } : ();
 
     my $message = $json->encode(
         abridge_items_recursive(

@@ -4,7 +4,7 @@ use Data::Dumper;
 
 use strict;
 use warnings;
-use Carp qw( croak ); 
+use Carp qw( croak );
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(reftype);
 use JSON::XS;
@@ -110,7 +110,7 @@ sub _bitmask_to_mask_string {
 }
 
 # table lookup
-# May be faster - 
+# May be faster -
 # Requires strings to be normalized
 # Current method handles repeats, out of order correctly.
 sub _mask_string_to_bitmask {
@@ -215,7 +215,7 @@ sub _configure_message_object {
             return;
         };
 
-    
+
     $DEFAULT_MESSAGE_CLASS = $object_pkg;
 }
 
@@ -347,7 +347,7 @@ sub _handle_message {
     my @messages;
     {   no warnings 'uninitialized';
 
-        if( @_ == 1 
+        if( @_ == 1
             && reftype($_[0]) eq 'CODE'
         ) {
             return if !$on_bit;
@@ -617,7 +617,7 @@ sub unimport {
     return;
 }
 
-# Emit the current logging settings as a string usable as a configuration 
+# Emit the current logging settings as a string usable as a configuration
 # command.
 sub log_level {
     shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
@@ -705,7 +705,7 @@ and production needs.
     use Log::Lager fatal => 'F';
     FATAL('Oh noes');  # Log an error and throw an exception.
 
-    
+
     # Get current settings:
     my $settings = Log::Lager::log_level();
 
@@ -790,7 +790,7 @@ Use the C<lexoff> log modifier to globally disable lexical mask modifiers.  This
 
 =head3 Package and Subroutine Log Mask
 
-Log masks may be set for specific package and subroutines.  Use 'package Foo::Bar::Baz [command here]' to configure the logging mask for a specific package.  
+Log masks may be set for specific package and subroutines.  Use 'package Foo::Bar::Baz [command here]' to configure the logging mask for a specific package.
 
 Each time a package or subroutine mask is specified, it replaces any previous value for that particular mask.
 
@@ -804,10 +804,10 @@ Processesing the following two commands will leave package Foo logging with the 
 
 This module is focused on providing easy to use, flexible control of logging.
 
-Control may be exerted by code alteration, by manipulation of the 
+Control may be exerted by code alteration, by manipulation of the
 environment, or at runtime.
 
-Message emission is handled purely by Perl's built-in C<warn> and C<die> 
+Message emission is handled purely by Perl's built-in C<warn> and C<die>
 functions.
 
 =head1 EXPORTS
@@ -971,7 +971,7 @@ Default logging is equivalent to C<base enable FEW>.
 
     use Log::Lager 'IDT stack D';
 
-Takes standard commands as a list of strings.  For example 
+Takes standard commands as a list of strings.  For example
 C<use Log::Lager qw( fatal FEW );> is equivalent to C<use Log::Lager "fatal FEW";>
 
 While this usage type is capable of handling any command, it is best to
