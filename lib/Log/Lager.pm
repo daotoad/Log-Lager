@@ -990,7 +990,7 @@ Command strings may consist of only log level characters (nouns).
 
 =head3 Environment Variable
 
-Set the C<OPENSIPSLOG> environment variable to override B<ALL> lexical settings for
+Set the C<LOGLAGER> environment variable to override B<ALL> lexical settings for
 the entire script.
 
 Assumes a leading C<enable base > at the start of the the command string:
@@ -1009,7 +1009,7 @@ The C<load_config_file> function lets you load a specific config file.  If no lo
 The C<apply_command> function allows any arbitrary command to be executed at runtime.
 
 Assumes a leading C<enable base > at the start of the the command string:
-C<OPENSIPSLOG=FWEG foo.pl> is identical to C<OPENSIPSLOG='enable base FWEG' foo.pl>.
+C<LOGLAGER=FWEG foo.pl> is identical to C<LOGLAGER='enable base FWEG' foo.pl>.
 
 =head1 Output Formats
 
