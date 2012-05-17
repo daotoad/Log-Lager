@@ -1,4 +1,7 @@
 package Log::Lager::CommandParser;
+BEGIN {
+  $Log::Lager::CommandParser::VERSION = '0.04.08';
+}
 use strict;
 use warnings;
 use Carp qw<croak>;
@@ -131,6 +134,9 @@ TEST:
 
 BEGIN {
     package Log::Lager::CommandResult;
+BEGIN {
+  $Log::Lager::CommandResult::VERSION = '0.04.08';
+}
     use overload '""' => 'as_string';
 
     sub new {
@@ -256,6 +262,9 @@ BEGIN {
 
 BEGIN {
     package Log::Lager::Mask;
+BEGIN {
+  $Log::Lager::Mask::VERSION = '0.04.08';
+}
     use overload '""' => 'as_string';
     use constant GROUP_PAIRS => (
         [qw/ enable  disable /],
@@ -376,6 +385,9 @@ BEGIN {
 
 BEGIN {
     package Log::Lager::Command;
+BEGIN {
+  $Log::Lager::Command::VERSION = '0.04.08';
+}
 
 =pod
 
@@ -582,6 +594,10 @@ message_config -> message \s+ (Some::Module::Name)
 
 Log::Lager::CommandParser
 
+=head1 VERSION
+
+version 0.04.08
+
 =head1 SYNOPSIS
 
 Provides command parsing for the Log::Lager module.
@@ -619,6 +635,3 @@ Collects the results of parsing a command.
 =head2 Mask
 
 =head3 Attributes
-
-
-
