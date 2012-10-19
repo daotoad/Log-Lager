@@ -12,6 +12,7 @@ use IO::Handle;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
+use Log::Lager::Spitter qw< >;
 
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
@@ -27,41 +28,27 @@ our %SUBROUTINE_MASK;    # Storage for sub specific masks
 # === Global config ===
 # Non-mask variables that store current configuration information
 our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
-our $OUTPUT_TARGET;      # Name of output facility
-our $SYSLOG_IDENTITY;    # Idenitity if using syslog output
-our $SYSLOG_FACILITY;    # Facility if using syslog output
-our $SYSLOG_OPENED;      # Flag - have we called "syslog_open"
-
-our $OUTPUT_FILE_NAME;   # File name of for output if using file output.
-our $OUTPUT_FILE_PERM;   # File name of for output if using file output.
-our $OUTPUT_FILE_HANDLE; # File handle if using file output.
-our $OUTPUT_FILE_INODE;  # Inode of the current file handle.
-our $OUTPUT_FILE_CHECK_TIME; # Inode of the current file handle.
-our $OUTPUT_FUNCTION;    # Code ref of emitter function.
+our $SPITTER;     # Log::Lager::Spitter object
 
 our $PREVIOUS_CONFIG_FILE = '';
 our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
-
-use constant STAT_INODE => 1;
-use constant LOG_FILEHANDLE_CHECK_FREQ => 60; # Seconds
 
 # === Configure Log Levels ===
 use constant {      # Indexes of the various elements in the LOG_LEVELS ARRAY
     MASK_CHAR    => 0,
     FUNCTION     => 1,
     BITFLAG      => 2,
-    SYSLOG_LEVEL => 3,
 };
 my @LOG_LEVELS = (
-    [ F => FATAL => 0x01, 'LOG_CRIT'    ],
-    [ E => ERROR => 0x02, 'LOG_ERR'     ],
-    [ W => WARN  => 0x04, 'LOG_WARNING' ],
-    [ I => INFO  => 0x08, 'LOG_INFO'    ],
-    [ D => DEBUG => 0x10, 'LOG_DEBUG'   ],
-    [ T => TRACE => 0x20, 'LOG_DEBUG'   ],
-    [ G => GUTS  => 0x40, 'LOG_DEBUG'   ],
-    [ U => UGLY  => 0x80, 'LOG_DEBUG'   ],
+    [ F => FATAL => 0x01 ],
+    [ E => ERROR => 0x02 ],
+    [ W => WARN  => 0x04 ],
+    [ I => INFO  => 0x08 ],
+    [ D => DEBUG => 0x10 ],
+    [ T => TRACE => 0x20 ],
+    [ G => GUTS  => 0x40 ],
+    [ U => UGLY  => 0x80 ],
 );
 my @LOG_FUNCTIONS = map $_->[FUNCTION], @LOG_LEVELS;
 
@@ -74,7 +61,7 @@ use constant {  # Number of bits to left shift for access to different parts of 
 
 # Process @LOG_LEVELS for easy access
 my @MASK_CHARS = map $_->[MASK_CHAR], @LOG_LEVELS;
-our %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
+our %MASK_CHARS; @MASK_CHARS{ @MASK_CHARS } = @LOG_LEVELS;
 my $MASK_REGEX = join '', keys %MASK_CHARS;
 
 # === Code Generation ===
@@ -173,36 +160,6 @@ sub _apply_bits_to_mask {
 
 # Configuration
 
-sub _configure_output {
-
-    if( $OUTPUT_FILE_HANDLE ) {
-        require IO::File;
-        $OUTPUT_FILE_HANDLE->close;
-        $OUTPUT_FILE_HANDLE = undef;
-    }
-
-    if( $SYSLOG_OPENED ) {
-        require Sys::Syslog;
-        Sys::Syslog::closelog();
-        $SYSLOG_OPENED = 0;
-    }
-
-    if( $OUTPUT_TARGET eq 'stderr' ) {
-        $OUTPUT_FUNCTION = \&_output_stderr;
-    }
-    elsif( $OUTPUT_TARGET eq 'file' ) {
-
-        _open_log_file();
-    }
-    elsif( $OUTPUT_TARGET eq 'syslog' ) {
-        require Sys::Syslog;
-        $OUTPUT_FUNCTION = \&_output_syslog;
-        Sys::Syslog::openlog( $SYSLOG_IDENTITY, 'ndelay,nofatal', $SYSLOG_FACILITY );
-        $SYSLOG_OPENED = 1;
-    }
-
-}
-
 sub _configure_message_object {
     my $object_pkg = shift;
 
@@ -289,15 +246,16 @@ sub _apply_config {
     }
 
     # Output
-    my $result; # TODO Fix this to work with Gene's code.
     my $out = $result->output;
     if( defined $out ) {
-        $OUTPUT_TARGET    = $result->output;
-        $SYSLOG_FACILITY  = $result->syslog_facility;
-        $SYSLOG_IDENTITY  = $result->syslog_identity;
-        $OUTPUT_FILE_NAME = $result->file_name;
-        $OUTPUT_FILE_PERM =  oct( $result->file_perm || '644' );
-        _configure_output();
+        $SPITTER = Log::Lager::Spitter->new_spitter(
+            target          => $result->output,
+            syslog_facility => $result->syslog_facility,
+            syslog_identity => $result->syslog_identity,
+            filename        => $result->file_name,
+            fileperm        => oct( $result->file_perm || '644' ),
+            );
+
     }
 
     # Lexical control flag
@@ -424,15 +382,12 @@ sub _handle_message {
     }
 
     if ($on_bit) {
-        my $message = $msg->format;
-
-        #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
-
-        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
-        $emitter->($level, $message);
+        my $spitter = $SPITTER;
+        $spitter  ||= Log::Lager::Spitter->default();
+        $spitter->spit( $level, $msg );
 
         if( $die_bit ) {
-           die "$message\n";
+           die "$msg->format\n";
         }
 
         load_config_file();
@@ -443,64 +398,6 @@ sub _handle_message {
     return @return_values    if wantarray;
     return $return_values[0] if @return_values <= 1;
     die "Have multiple return values when wantarray is false\n";
-}
-
-# Output type specific handlers
-sub _output_stderr {
-    my ($level, $message) = @_;
-    STDERR->printflush( "$message" );
-    return;
-}
-
-sub _output_syslog {
-    my ($level, $message) = @_;
-    my $syslog_level = $MASK_CHARS{$level}->[SYSLOG_LEVEL];
-    Sys::Syslog::syslog( $syslog_level, "%s", $message );
-    return;
-}
-
-sub _output_file {
-    shift;
-
-    if ( $OUTPUT_FILE_CHECK_TIME + LOG_FILEHANDLE_CHECK_FREQ <= time ) {
-        $OUTPUT_FILE_CHECK_TIME = time;
-
-        my $inode = (stat $OUTPUT_FILE_NAME)[STAT_INODE];
-        $inode = 0 unless $inode;
-
-        if ( ! $OUTPUT_FILE_HANDLE
-            or $OUTPUT_FILE_INODE  != $inode
-        ) {
-            _open_log_file();
-        }
-    }
-
-    $OUTPUT_FILE_HANDLE or return &_output_stderr;
-
-    $OUTPUT_FILE_HANDLE->printflush( @_ );
-    return;
-}
-
-sub _open_log_file {
-
-    require IO::File;
-    my @output_stat = stat($OUTPUT_FILE_NAME);
-    my $file_exists = -e $OUTPUT_FILE_NAME;
-    $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
-
-    if( $OUTPUT_FILE_HANDLE ) {
-
-        @output_stat = stat($OUTPUT_FILE_HANDLE)
-            unless $file_exists;
-
-        $OUTPUT_FILE_INODE = $output_stat[STAT_INODE];
-        $OUTPUT_FILE_CHECK_TIME = time;
-        $OUTPUT_FUNCTION = \&_output_file;
-    }
-
-    # Delay logging error until output falls back on STDERR.
-    $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
-
 }
 
 
@@ -572,7 +469,7 @@ sub load_config_file {
 
 # Non-standard import method.
 # Parse a log configuration command.
-# May also import log emitter functions if not already present.
+# May also import log spitter functions if not already present.
 #
 # Injects a "lexical enable" at start of command
 sub import {
@@ -683,11 +580,12 @@ sub log_level {
         for keys %SUBROUTINE_MASK;
 
 
-    $r->output( $OUTPUT_TARGET );
-    $r->syslog_identity( $SYSLOG_IDENTITY );
-    $r->syslog_facility( $SYSLOG_FACILITY );
-    $r->file_name( $OUTPUT_FILE_NAME );
-    $r->file_perm( sprintf "%O", $OUTPUT_FILE_PERM );
+    my $e = $SPITTER;
+    $r->output(                  $e->output_target    );
+    $r->syslog_identity(         $e->syslog_identity  );
+    $r->syslog_facility(         $e->syslog_facility  );
+    $r->file_name(               $e->output_file_name );
+    $r->file_perm( sprintf "%O", $e->output_file_perm );
 
     $r->lexicals_enabled( $ENABLE_LEXICAL );
 

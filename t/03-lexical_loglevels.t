@@ -57,17 +57,17 @@ Log::Lager::apply_command('message BOOGER');
 run_test_group();
 
 sub run_test_group {
-for my $set_spec ( @TEST_SPECS ) {
-    my ($cmd, $set) = @$set_spec;
+    for my $set_spec ( @TEST_SPECS ) {
+        my ($cmd, $set) = @$set_spec;
 
-    for my $test ( @$set ) {
-        my ($level, $expect) = @$test;
-    
-        my $result = exec_loglevel( $cmd, $level );
-        check_results( $result, $expect, $level );
+        for my $test ( @$set ) {
+            my ($level, $expect) = @$test;
+
+            my $result = exec_loglevel( $cmd, $level );
+            check_results( $result, $expect, $level );
+        }
+
     }
-
-}
 }
 
 
@@ -81,22 +81,21 @@ sub exec_loglevel {
     {   open my $fh, '>', $path;
         $fh->printflush("BEGIN MESSAGE\n");
     }
-    
+
     my $cut = <<"END";
-    package _My_::Test;
-    $lexical_cmd;
-    use Log::Lager 'file $path';
-    use Log::Lager 'stack FEWTDIG';
-    no warnings 'redefine';
+        package _My_::Test;
+        $lexical_cmd;
+        use Log::Lager 'file $path';
+        use Log::Lager 'stack FEWTDIG';
+        no warnings 'redefine';
 
-    log_me();
+        log_me();
 
-    sub log_me {
-        $level 'Message'; 
-    }
+        sub log_me {
+            $level 'Message';
+        }
 
-    1;
-    
+        1;
 END
 
     warn "$cut";
@@ -131,14 +130,14 @@ sub check_results {
             : $expect->{stack_trace} ? '>'
             :                          '=';
     cmp_ok( scalar @$results, $cmp, 3, 'Emitted line count as configured.' );
-    
+
     my @except = grep /Exception thrown/,  @$results;
 
     my $count = !$expect->{enabled} ? 0
               :  $expect->{fatal}   ? 1
               :                       0;
     is( scalar @except, $count, 'Exceptions as configured.' );
-    
+
     my $json = $results->[1];
 
     # TODO parse etc.
