@@ -175,7 +175,7 @@ sub get_emitter {
             and $old->config_matches($options)
         );
 
-    return $type->new( $options );
+    return $type->new( @$options );
 }
 
 sub file_type {

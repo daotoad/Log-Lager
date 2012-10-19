@@ -2,6 +2,8 @@ package Log::Lager::Spitter::File;
 use strict;
 use warnings;
 
+our @ISA = 'Log::Lager::Spitter';
+
 use constant LOG_FILEHANDLE_CHECK_FREQ => 60; # Seconds
 use constant STAT_INODE => 1;
 
@@ -21,14 +23,26 @@ BEGIN {
     }
 }
 
+our $IDENTITY_OPTIONS = [ qw<
+    filename
+    fileperm
+> ];
+
+our $OPTION_ATTRIBUTE_INDEX_MAP = {
+    filename => _filename,
+    fileperm => _file_perm,
+    # The rest do not comme from options
+};
+
 sub new {
     my( $class, %params ) = @_;
-
-    my $self = bless( [], $class );
+    my $self = $class->SUPER::new( %params );
     $self->[_filename] = $params{ filename };
     $self->[_file_perm] = $params{ fileperm };
     # TODO: add checks for extraneous params
+    # TODO: re-write to use $OPTION_ATTRIBUTE_INDEX_MAP
 
+    bless( $self, $class );
     return $self->_open_the_file()
         ? $self
         : undef;    # so caller knows we failed

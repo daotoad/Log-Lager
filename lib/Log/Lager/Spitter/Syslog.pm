@@ -2,7 +2,9 @@ package Log::Lager::Spitter::Syslog;
 use strict;
 use warnings;
 
-# perhaps we should factor these out of Lager.pm.
+our @ISA = 'Log::Lager::Spitter';
+
+use constant DEFAULT_SYSLOG_LEVEL => 'LOG_ERR';
 use constant SYSLOG_LEVELS => {
     F => 'LOG_CRIT',
     E => 'LOG_ERR',
@@ -13,7 +15,6 @@ use constant SYSLOG_LEVELS => {
     G => 'LOG_DEBUG',
     U => 'LOG_DEBUG',
 };
-use constant DEFAULT_SYSLOG_LEVEL => 'LOG_ERR';
 
 # Class attributes:
 my @Attrs;
@@ -28,6 +29,15 @@ BEGIN {
         constant->import( $Attrs[ $_ ], $_ );
     }
 }
+
+our $IDENTITY_OPTIONS = [ qw<
+    syslog_identity
+    syslog_facility
+> ];
+our $OPTION_ATTRIBUTE_INDEX_MAP = {
+    syslog_identity => _identity,
+    syslog_facility => _facility,
+};
 
 sub new {
     my ( $class, %params ) = @_;

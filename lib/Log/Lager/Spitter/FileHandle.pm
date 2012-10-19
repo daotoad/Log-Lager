@@ -16,6 +16,11 @@ BEGIN {
     }
 }
 
+our $IDENTITY_OPTIONS = [ qw<
+> ];
+our $OPTION_ATTRIBUTE_INDEX_MAP = {
+};
+
 sub new {
     my ( $class, %params ) = @_;
     return unless $class ne __PACKAGE__;

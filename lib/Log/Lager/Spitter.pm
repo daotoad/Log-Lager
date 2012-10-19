@@ -2,6 +2,14 @@ package Log::Lager::Spitter;
 use strict;
 use warnings;
 
+# A base class for all Spitter classes
+
+# TODO Add support for nested options in config_matches( ) (only support flat hashes right now)
+
+sub new {
+    my ( $class, %params ) = @_;
+}
+
 # This method should go away with the new configuration file logic, since 
 # config will tell us exactly which spitter to use and what to pass into it.
 sub new_spitter {
@@ -31,17 +39,41 @@ sub new_spitter {
     return $emitter;
 }
 
-sub default {
+sub default {   # returns the default spitter
     my ( $class ) = @_;
     require Log::Lager::Spitter::StdErr;
     return Log::Lager::Spitter::StdErr->new();
 }
 
-sub config_matches {
-    my $self   = shift;
-    my $config = shift;
+sub _get_identity_options {
+    my ( $self ) = @_;
+    my $class = ref( $self );
+    no strict 'refs';
+    return ${ "${class}::IDENTITY_OPTIONS" } || [];
+}
 
-# check config for same as object.
+sub _get_attribute_for_option {
+    my ( $self, $option_name ) = @_;
+    my $class = ref( $self );
+    no strict 'refs';
+    my $map = ${ "${class}::OPTION_ATTRIBUTE_INDEX_MAP" } || {};
+    my $attr_index = $map->{ $option_name };
+    my $attr_val = $self->[ $attr_index ];
+    return $attr_val;
+}
+
+sub config_matches {
+    my $self    = shift;    # a subclass, in most cases
+    my $options = shift;
+
+    for my $identity_option ( @{ $self->_get_identity_options() } ) {
+        my $attr_val = $self->_get_attribute_for_option( $identity_option );
+
+        if( $attr_val ne $options->{ $_ } ) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 1;

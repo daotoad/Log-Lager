@@ -12,18 +12,7 @@ use strict;
 use warnings;
 use Carp qw< croak >;
 
-use constant DEFAULT_LOG4PERL_METHOD => 'error';
-use constant LOG4PERL_LEVEL_METHODS  =>
-{
-    F => 'fatal',
-    E => 'error',
-    W => 'warn',
-    I => 'info',
-    D => 'debug',
-    T => 'trace',
-    G => DEFAULT_LOG4PERL_METHOD,
-    U => DEFAULT_LOG4PERL_METHOD,
-};
+our @ISA = 'Log::Lager::Spitter';
 
 # Class attributes:
 my @Attrs;
@@ -37,6 +26,14 @@ BEGIN {
     }
 }
 
+our $IDENTITY_OPTIONS = [ qw<
+    category
+> ];
+our $OPTION_ATTRIBUTE_INDEX_MAP = {
+    category => _category,
+};
+
+
 sub new {
     my( $class, %params ) = @_;
     my $self = bless( [], $class );
@@ -44,6 +41,18 @@ sub new {
     return $self;
 }
 
+use constant DEFAULT_LOG4PERL_METHOD => 'error';
+use constant LOG4PERL_LEVEL_METHODS  =>
+{
+    F => 'fatal',
+    E => 'error',
+    W => 'warn',
+    I => 'info',
+    D => 'debug',
+    T => 'trace',
+    G => DEFAULT_LOG4PERL_METHOD,
+    U => DEFAULT_LOG4PERL_METHOD,
+};
 sub _get_method_for_level {
     my( $lager_level ) = @_;
     return LOG4PERL_LEVEL_METHODS->{ $lager_level }
