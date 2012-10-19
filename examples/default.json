@@ -1,0 +1,9 @@
+{   'base_mask'              : 'enable FEW compact FEWTDIGU nostack FEWTDIGU',
+    'package_masks'          : null,
+    'subroutine_masks'       : null,
+    'disable_lexical_config' : false,
+    'emitter_type'           :'Log::Lager::Emitter::StdOut',
+    'emitter_options'        : null,
+    'message_type'           : 'Log::Lager::Mesage',
+    'message_options'        : null
+}

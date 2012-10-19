@@ -1,0 +1,9 @@
+base_mask        : enable FEW compact FEWTDIGU nostack FEWTDIGU
+package_masks    : ~
+subroutine_masks : ~
+disable_lexical_config : TRUE
+emitter_type     : 'Log::Lager::Emitter::StdOut'
+emitter_options  : ~
+message_type     :'Log::Lager::Mesage'
+message_options  : ~
+
