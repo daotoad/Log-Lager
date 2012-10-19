@@ -1,9 +1,15 @@
+Big immediate changes wanted:
+  Separate lexical configuration from system wide configuration.
+  Provide a way to get a log object for compatibility with systems that want a log object.
+  Provide a way to act as an interface to Log4Perl.
+
 Before 1.0
   THEME: Make it work
     - Complete a reasonable amount of unit tests.
     - Update POD in modules
     - Message objects must be able to indicate a desire to have bits set by event handler.
     - Code changes only as needed.
+
 
 After 1.0 - i
   THEME: More injections.
