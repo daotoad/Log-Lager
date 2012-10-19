@@ -7,33 +7,7 @@ use Data::Dumper;
 use Scalar::Util qw< blessed >;
 use Hash::Util  qw< lock_keys >;
 
-use Exporter qw( import );
-our @EXPORT_OK = qw( parse_command );
 
-
-sub parse_command {
-    my $class = shift;
-    my $command_string = join ' ', @_;
-    my @tokens = split /\s+/, $command_string;
-
-    my $mask = $class->new();
-
-    my $term;
-    for ( @tokens ) {
-        if ( /^($Log::Lager::Mask::MASK_REGEX+)$/ and defined $term ) {
-            $mask->$term($_);
-        }
-        elsif ( /^(match_terms)$/ ) {
-            $term = $1;
-        }
-        else {
-            Log::Lager::ERROR( "Invalid token '$_' in command string", $_, $string );
-            return;
-        }
-    }
-
-    return $mask;
-}
 
 
 use overload '""' => 'as_string';
@@ -60,10 +34,10 @@ our $MASK_REGEX = join '', '[', MASK_CHARS, ']';
     for ( GROUP_PAIRS ) {
         my @pair = @$_;
 
-        *$pair[0] = sub {
+        *{$pair[0]} = sub {
             my $self = shift;
             $self->toggle_mask( @pair, @_ )
-        } and reverse @pair
+        } and @pair[0,1] = @pair[1,0]
             for 1 .. 2;
     }
 
@@ -89,6 +63,30 @@ sub new {
     return $self;
 }
 
+sub parse_command {
+    my $class = shift;
+    my $command_string = join ' ', @_;
+    my @tokens = split /\s+/, $command_string;
+
+    my $mask = $class->new();
+
+    my $term;
+    for ( @tokens ) {
+        if ( /^($Log::Lager::Mask::MASK_REGEX+)$/ and defined $term ) {
+            $mask->$term($_);
+        }
+        elsif ( /^($GROUP_REGEX)$/ ) {
+            $term = $1;
+        }
+        else {
+            Log::Lager::ERROR( "Invalid token '$_' in command string", $_, $command_string );
+            warn "Invalid token '$_' in command string '$command_string'";
+            return;
+        }
+    }
+
+    return $mask;
+}
 sub toggle_mask {
     my $self  = shift;
     my $on    = shift;
@@ -142,6 +140,7 @@ sub changed {
     return $self->{__IS_SET__};
 }
 
+1;
 
 
 =head1 NAME

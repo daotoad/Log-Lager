@@ -53,8 +53,6 @@ use_ok( 'Log::Lager' )
 
 
 run_test_group();
-Log::Lager::apply_command('message BOOGER');
-run_test_group();
 
 sub run_test_group {
     for my $set_spec ( @TEST_SPECS ) {
@@ -144,7 +142,5 @@ sub check_results {
 
 }
 
-BEGIN {
-    package BOOGER;
-    use base 'Log::Lager::Message';
-}
+
+warn "I am a monkey";

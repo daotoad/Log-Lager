@@ -3,5 +3,6 @@ package_masks          : ~
 subroutine_masks       : ~
 disable_lexical_config : false
 emitter_type           : Log::Lager::Emitter::StdOut
+emitter_options        : ~
 message                : Log::Lager::Mesage
 

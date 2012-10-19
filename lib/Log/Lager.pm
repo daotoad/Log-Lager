@@ -10,7 +10,7 @@ use Scalar::Util qw(reftype);
 use JSON::XS;
 use IO::Handle;
 
-use Log::Lager::CommandParser qw( parse_command );
+use Log::Lager::Mask;
 use Log::Lager::Message;
 use Log::Lager::Spitter qw< >;
 
@@ -32,7 +32,8 @@ our $SPITTER;     # Log::Lager::Spitter object
 
 our $PREVIOUS_CONFIG_FILE = '';
 our $CONFIG_LOAD_TIME     = 0;
-our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
+our $DEFAULT_MESSAGE_CLASS   = 'Log::Lager::Message';
+our $DEFAULT_MESSAGE_OPTIONS = {};
 
 # === Configure Log Levels ===
 use constant {      # Indexes of the various elements in the LOG_LEVELS ARRAY
@@ -161,10 +162,13 @@ sub _apply_bits_to_mask {
 # Configuration
 
 sub _configure_message_object {
-    my $object_pkg = shift;
+    my $object_pkg  = shift;
+    my $object_opts = shift;
 
     return unless defined $object_pkg;
     return unless length $object_pkg;
+
+    return unless ref $object_opts eq 'HASH';
 
     eval << "    END"
        require $object_pkg
@@ -176,8 +180,10 @@ sub _configure_message_object {
             return;
         };
 
+    $DEFAULT_MESSAGE_CLASS   = $object_pkg;
+    $DEFAULT_MESSAGE_OPTIONS = $object_opts;
 
-    $DEFAULT_MESSAGE_CLASS = $object_pkg;
+    return 1;
 }
 
 sub _parse_commands {
@@ -192,14 +198,14 @@ sub _parse_commands {
     }
 
     if( Log::Lager::INTERNAL_TRACE() ) {
-        printf STDERR "SETTING LEXICAL MASK: %08X\n", $BASE_MASK;
+        printf STDERR "SETTING LEXICAL MASK: %08X\n", $lex_masks;
         use Data::Dumper; print Dumper $mask;
     }
 
     return $lex_masks;
 }
 
-sub _apply_config {
+sub apply_config {
     my $config = shift || $CONFIG;
 
     # apply changes to BASE
@@ -249,12 +255,11 @@ sub _apply_config {
     $SPITTER = $config->get_emitter( $SPITTER );
 
     # Lexical control flag
-    my $lexon = $result->lexicals_enabled;
+    my $lexon = $config->lexicals_enabled();
     $ENABLE_LEXICAL = $lexon if defined $lexon;
     $ENABLE_LEXICAL = 1 if $] < 5.009;
 
-    my $default_message = $result->message_object;
-    _configure_message_object( $default_message );
+    _configure_message_object( $config->message_type, $config->message_options );
 
     return;
 }
@@ -299,10 +304,19 @@ sub _get_bits {
 sub _handle_message {
     my $level = shift;
 
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        printf STDERR "MESSAGE at $level : @_ ";
+        use Data::Dumper; print Dumper \@_;
+    }
+
     croak "Invalid log level '$level'"
         unless exists $MASK_CHARS{$level};
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "MESSAGE BITS: ON-$on_bit DIE-$die_bit PRETTY-$pretty_bit STACK-$stack_bit\n" );
+        }
+
 
     # Get raw messages from either callback or @_
     my @messages;
@@ -363,6 +377,7 @@ sub _handle_message {
     else {
         return if !$on_bit;
         $msg = $DEFAULT_MESSAGE_CLASS->new(
+            %{$DEFAULT_MESSAGE_OPTIONS},
             context         => 0,
             loglevel        => $MASK_CHARS{$level}[FUNCTION],
             message         => \@messages,
@@ -374,6 +389,12 @@ sub _handle_message {
     if ($on_bit) {
         my $spitter = $SPITTER;
         $spitter  ||= Log::Lager::Spitter->default();
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "SPIT with $spitter / $SPITTER - $msg\n" );
+#use Data::Dumper; STDERR->printflush( Dumper $msg );
+        }
+
         $spitter->spit( $level, $msg );
 
         if( $die_bit ) {
@@ -397,8 +418,9 @@ sub _handle_message {
 # Apply a generic command set to the current configuration
 sub apply_command {
     shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
-    _parse_commands( [0,0], 'base enable', @_ );
+    _parse_commands( [0,0], 'enable', @_ ) or die "Oops";
 }
+
 
 # Load a configuration file as needed.
 # This function is looks for changes in the configured file before processing it.
@@ -443,7 +465,7 @@ sub load_config_file {
     }
 
     eval {
-        apply_command( @lines );
+        apply_config( @lines );
         1;
     }
     or do {
@@ -542,44 +564,11 @@ sub unimport {
     return;
 }
 
-# Emit the current logging settings as a string usable as a configuration
-# command.
+# TODO  Rewrite to dump calculated log level in Log::Lager command argot
 sub log_level {
     shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
 
-    my $r = Log::Lager::CommandResult->new;
-
-
-    # Base
-    _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $r->base );
-
-    # Lexical
-    my $hints = (caller(0))[10];
-    _apply_bits_to_mask(
-        $hints->{'Log::Lager::Log_enable'},
-        $hints->{'Log::Lager::Log_disable'},
-        $r->lexical
-    );
-
-    # Package
-    _apply_bits_to_mask( @{$PACKAGE_MASK{$_}}, $r->package($_) )
-        for keys %PACKAGE_MASK;
-
-    # Sub
-    _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}}, $r->sub($_) )
-        for keys %SUBROUTINE_MASK;
-
-
-    my $e = $SPITTER;
-    $r->output(                  $e->output_target    );
-    $r->syslog_identity(         $e->syslog_identity  );
-    $r->syslog_facility(         $e->syslog_facility  );
-    $r->file_name(               $e->output_file_name );
-    $r->file_perm( sprintf "%O", $e->output_file_perm );
-
-    $r->lexicals_enabled( $ENABLE_LEXICAL );
-
-    return $r->as_string;
+    die "Need to fix this";
 }
 
 1;
