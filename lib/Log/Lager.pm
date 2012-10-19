@@ -17,6 +17,7 @@ use Log::Lager::Message;
     unless defined &INTERNAL_TRACE;
 
 # Global configuration
+our $CONFIG;
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
 our $BASE_MASK;          # Base mask that all other masks are calculated relative to
@@ -62,6 +63,7 @@ my @LOG_LEVELS = (
     [ G => GUTS  => 0x40, 'LOG_DEBUG'   ],
     [ U => UGLY  => 0x80, 'LOG_DEBUG'   ],
 );
+my @LOG_FUNCTIONS = map $_->[FUNCTION], @LOG_LEVELS;
 
 use constant {  # Number of bits to left shift for access to different parts of config mask.
     ENABLE_BITSHIFT   => 0,
@@ -86,12 +88,15 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-our @DEFAULT = qw( base enable FEW fatal F lexon stderr fileperm 644 );
+our @DEFAULT = qw(
+    enable   FEW disable     IGTDU
+    fatal        nonfatal FEWIGTDU
+    stack        nostack  FEWIGTDU
+    pretty       compact  FEWIGTDU
+);
 _parse_commands( [0,0], @DEFAULT );
-_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
+_parse_commands( [0,0], 'enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
-
-
 
 # Bitmask manipulation
 sub _bitmask_to_mask_string {
@@ -223,8 +228,22 @@ sub _parse_commands {
     my $masks = shift;
     my @commands = @_;
 
-    my $result = parse_command( @commands );
     my $lex_masks = [@$masks];  # Copy lex masks to avoid leaky side effects
+    my $mask = Log::Lager::Mask->parse_command( @commands );
+    {   my @bitmasks = _convert_mask_to_bits( $mask );
+        $lex_masks->[0] |=  $bitmasks[0];
+        $lex_masks->[1] |=  $bitmasks[1];
+    }
+
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        printf STDERR "SETTING LEXICAL MASK: %08X\n", $BASE_MASK;
+        use Data::Dumper; print Dumper $mask;
+    }
+
+}
+
+sub _apply_config {
+    my $config = shift || $CONFIG;
 
     if( Log::Lager::INTERNAL_TRACE() ) {
         printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
@@ -232,24 +251,19 @@ sub _parse_commands {
     }
 
     # apply changes to BASE
-    if( $result->base->changed ) {
-        my @bitmasks = _convert_mask_to_bits( $result->base );
+    my $bm = $config->get_mask( 'base' );
+    if( defined $bm ) {
+        my @bitmasks = _convert_mask_to_bits($bm);
         $BASE_MASK |=  $bitmasks[0];
         $BASE_MASK &= ~$bitmasks[1];
     }
     printf STDERR "BASE MASK: %08X\n", $BASE_MASK
         if Log::Lager::INTERNAL_TRACE();
 
-    # Lexical Mask
-    {   my @bitmasks = _convert_mask_to_bits( $result->lexical );
-        $lex_masks->[0] |=  $bitmasks[0];
-        $lex_masks->[1] |=  $bitmasks[1];
-    }
-
     # Package:
-    for my $name ( $result->package_names ) {
+    for my $name ( $config->package_names ) {
 
-        my $mask = $result->read_package($name);
+        my $mask = $result->get_mask( package => $name);
 
         my @bitmasks = _convert_mask_to_bits( $mask );
         if( @bitmasks ) {
@@ -262,6 +276,8 @@ sub _parse_commands {
 
     # Subroutine masks
     for my $name ( $result->sub_names ) {
+
+        my $mask = $result->get_mask( 'sub' => $name);
 
         $SUBROUTINE_MASK{$name} = [0,0];
 
@@ -290,7 +306,7 @@ sub _parse_commands {
     # Lexical control flag
     my $lexon = $result->lexicals_enabled;
     $ENABLE_LEXICAL = $lexon if defined $lexon;
-    $ENABLE_LEXICAL = 0 if $] < 5.009;
+    $ENABLE_LEXICAL = 1 if $] < 5.009;
 
     my $default_message = $result->message_object;
     _configure_message_object( $default_message );
@@ -567,16 +583,41 @@ sub import {
 
     my $caller = caller;
 
+    my %import;
+    @import{ @LOG_FUNCTIONS } = @LOG_FUNCTIONS;
+
+
+    # Got configuration hash
+    # TODO flesh out configuration loading
+    if( ref $_[0] ) {
+        my $config = shift;
+        configure( $config );
+
+        # TODO - better error messages for bad settings.
+        for ( keys %{$config->{import_as}} ) {
+            $import_as{$_} = $config->{import_as}{$_};
+        }
+        for ( keys $config->{no_import} ) {
+            delete $import{$_}
+                if exists $import{$_};
+        }
+
+    }
+
     # Import functions
     # Skip if this is not the first time through
     my $hints = (caller(1))[10];
     unless( defined $hints->{'Log::Lager::Log_enable'} ) {
         no strict 'refs';
 
+        # TODO look for import / noimport in MASK and import as needed.
         for my $l ( @LOG_LEVELS ) {
             my $func = $l->[FUNCTION];
+            next unless exists $import{$func};
+
             my $level = $l->[MASK_CHAR];
-            my $dest_func = "${caller}::$func";
+
+            my $dest_func = "${caller}::$import{$func}";
             *$dest_func = \&$func;
         }
     }
@@ -587,7 +628,7 @@ sub import {
             $^H{'Log::Lager::Log_enable'},
             $^H{'Log::Lager::Log_disable'}
         ];
-        $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
+        $mask = _parse_commands( $mask, 'enable',  @_ ) if @_;
 
         $^H{'Log::Lager::Log_enable'}  = defined($mask->[0]) ? $mask->[0] : 0;
         $^H{'Log::Lager::Log_disable'} = defined($mask->[1]) ? $mask->[1] : 0;
