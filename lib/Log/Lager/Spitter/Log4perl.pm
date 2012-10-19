@@ -1,13 +1,12 @@
 package Log::Lager::Spitter::Log4perl;
 
 #
-# A Log Spitter
-# ( i.e. follows the pattern of having an emit( $level, $message ) method )
-# that interfaces with Log4perl, allowing users to configure log4perl but
-# still use the Log::Lager interface
+# A Log Spitter that allows users to use Log::Lager as a proxy interface
+# to Log4perl
 #
 
 # TODO: add support for logdie() ( a log4perl method )
+# TODO: add support for specifying log4perl config
 
 use strict;
 use warnings;
@@ -46,13 +45,15 @@ sub new {
 
 sub _get_log4perl_method {
     my( $lager_level ) = @_;
-    return LOG4PERL_LEVEL_METHODS->{ $lager_level } || DEFAULT_LOG4PERL_METHOD;
+    return LOG4PERL_LEVEL_METHODS->{ $lager_level }
+        || DEFAULT_LOG4PERL_METHOD;
 }
 
 sub spit {
     my( $self, $lager_level, $message ) = @_;
     croak "Must provide Log::Lager::Message instance"
         unless( 'Log::Lager::Message' eq ref( $message ) );
+
     eval {
         require Log::Log4perl;
         my $logger =
