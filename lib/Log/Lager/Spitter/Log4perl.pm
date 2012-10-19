@@ -13,7 +13,8 @@ use warnings;
 use Carp qw< croak >;
 
 use constant DEFAULT_LOG4PERL_METHOD => 'error';
-use constant LOG4PERL_LEVEL_METHODS => {
+use constant LOG4PERL_LEVEL_METHODS  =>
+{
     F => 'fatal',
     E => 'error',
     W => 'warn',
@@ -43,7 +44,7 @@ sub new {
     return $self;
 }
 
-sub _get_log4perl_method {
+sub _get_method_for_level {
     my( $lager_level ) = @_;
     return LOG4PERL_LEVEL_METHODS->{ $lager_level }
         || DEFAULT_LOG4PERL_METHOD;
@@ -60,13 +61,17 @@ sub spit {
             $self->[_category]
                 ? Log::Log4perl->get_logger( $self->[_category] )
                 : Log::Log4perl->get_logger();
-        my $method = _get_log4perl_method( $lager_level );
-        $logger->$method( $message->message );
+
+        my $level_method = _get_method_for_level( $lager_level );
+        for my $message_unit ( @{ $message->message } ) {
+            $logger->$level_method( $message_unit );
+        }
         1;
     } or do {
         require Log::Lager;
         Log::Lager::ERROR( "Failed to log to Log4perl: $@" );
     };
+
     return;
 }
 
