@@ -2,6 +2,8 @@ package Log::Lager::Spitter::FileHandle;
 use strict;
 use warnings;
 
+our @ISA = 'Log::Lager::Spitter';
+
 # Class Instance Attributes
 my @Attrs;
 BEGIN {
@@ -16,6 +18,8 @@ BEGIN {
 
 sub new {
     my ( $class, %params ) = @_;
+    return unless $class ne __PACKAGE__;
+
     my $self ||= bless( [], $class );
     $self->[_file_handle] = $params{ file_handle } || undef;
     return $self;

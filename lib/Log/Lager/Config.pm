@@ -146,6 +146,38 @@ sub sub_names {
     return sort keys %{$self->{masks}{package}};
 }
 
+sub set_emitter {
+    my $self = shift;
+    my $type = shift;
+    my $options = shift || {};
+
+    eval "require $type; 1"
+        or do {
+            warn "Invalid emitter class - $type - $@";
+            Log::Lager::ERROR( "Invalid emitter class", $type, $@);
+            return;
+        };
+
+    $self->{emitter}=[$type, $options];
+    return 1;
+}
+
+sub get_emitter {
+    my $self = shift;
+    my $old  = shift;
+
+    my $type = $self->{emitter}[0];
+    my $options = $self->{emitter}[1];
+
+    return $old
+        if (    defined $old
+            and $old->isa($type)
+            and $old->config_matches($options)
+        );
+
+    return $type->new( $options );
+}
+
 sub file_type {
     my $self = shift;
 

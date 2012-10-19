@@ -37,4 +37,11 @@ sub default {
     return Log::Lager::Spitter::StdErr->new();
 }
 
+sub config_matches {
+    my $self   = shift;
+    my $config = shift;
+
+# check config for same as object.
+}
+
 1;

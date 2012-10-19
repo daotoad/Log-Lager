@@ -246,17 +246,7 @@ sub _apply_config {
     }
 
     # Output
-    my $out = $result->output;
-    if( defined $out ) {
-        $SPITTER = Log::Lager::Spitter->new_spitter(
-            target          => $result->output,
-            syslog_facility => $result->syslog_facility,
-            syslog_identity => $result->syslog_identity,
-            filename        => $result->file_name,
-            fileperm        => oct( $result->file_perm || '644' ),
-            );
-
-    }
+    $SPITTER = $config->get_emitter( $SPITTER );
 
     # Lexical control flag
     my $lexon = $result->lexicals_enabled;
