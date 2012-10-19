@@ -4,6 +4,8 @@ use overload '""' => 'as_string';
 use strict;
 use warnings;
 
+require Log::Lager;
+
 sub new {
     my $class = shift;
 
@@ -62,7 +64,7 @@ sub load_file {
     }
     or do {
         warn "Error opening config file '$path': $@\n";
-        ERROR( "Error opening config file", $path, $@ );
+        Log::Lager::ERROR( "Error opening config file", $path, $@ );
         return;
     };
 
@@ -71,10 +73,10 @@ sub load_file {
 }
 
 sub _deboole_yaml { $_[0] = $_[0] =~ /^\s*(y(es)|t(rue))\s*$/i ? 1 : 0; }
-sub _boolify_yaml { $_[0] = $_[0] : 'TRUE' ? 'FALSE'; }
+sub _boolify_yaml { $_[0] = $_[0] ? 'TRUE' : 'FALSE'; }
 
 sub _deboole_json { $_[0] += 0; }
-sub _boolify_json { $_[0] = $_[0] : JSON::true ? JSON::false; }
+sub _boolify_json { $_[0] = $_[0] ? JSON::true() : JSON::false(); }
 
 sub _init {
     my $self = shift;
@@ -118,6 +120,32 @@ sub set_mask {
     return 1;
 }
 
+sub get_mask {
+    my $self =shift;
+    my $type = shift;
+
+    return Log::Lager::Mask->parse_command($self->{masks}{base})
+        if( $type eq 'base' );
+
+    my $name = shift;
+
+    return unless exists $self->{masks}{$type};
+    return unless exists $self->{masks}{$type}{$name};
+    return Log::Lager::Mask->parse_command($self->{masks}{$type}{$name});
+}
+
+sub package_names {
+    my $self = shift;
+
+    return sort keys %{$self->{masks}{package}};
+}
+
+sub sub_names {
+    my $self = shift;
+
+    return sort keys %{$self->{masks}{package}};
+}
+
 sub file_type {
     my $self = shift;
 
@@ -143,21 +171,21 @@ sub as_string {
     };
 
     eval {
-        if( $type eq 'YAML' {
+        if( $type eq 'YAML' ) {
             require YAML;
             _boolify_yaml( $cfg_data->{disable_lexical_config} );
-            return YAML::Dump( $data );
+            return YAML::Dump( $cfg_data );
 
         }
         else {  #  $type eq 'JSON'
             require JSON;
             _boolify_json( $cfg_data->{disable_lexical_config} );
-            return JSON::encode_json( $data );
+            return JSON::encode_json( $cfg_data );
         }
     }
     or do {
         warn "Error converting configuration to $type string";
-        ERROR "Error converting configuration to $type string";
+        Log::Lager::ERROR( "Error converting configuration to $type string");
     };
     return;
 }

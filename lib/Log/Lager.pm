@@ -88,13 +88,12 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-our @DEFAULT = qw(
+our @DEFAULT_BASE = qw(
     enable   FEW disable     IGTDU
     fatal        nonfatal FEWIGTDU
     stack        nostack  FEWIGTDU
     pretty       compact  FEWIGTDU
 );
-_parse_commands( [0,0], @DEFAULT );
 _parse_commands( [0,0], 'enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
 
@@ -240,18 +239,18 @@ sub _parse_commands {
         use Data::Dumper; print Dumper $mask;
     }
 
+    return $lex_masks;
 }
 
 sub _apply_config {
     my $config = shift || $CONFIG;
 
-    if( Log::Lager::INTERNAL_TRACE() ) {
-        printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
-        use Data::Dumper; print Dumper $result->base;
-    }
-
     # apply changes to BASE
     my $bm = $config->get_mask( 'base' );
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
+        use Data::Dumper; print Dumper $bm
+    }
     if( defined $bm ) {
         my @bitmasks = _convert_mask_to_bits($bm);
         $BASE_MASK |=  $bitmasks[0];
@@ -263,7 +262,7 @@ sub _apply_config {
     # Package:
     for my $name ( $config->package_names ) {
 
-        my $mask = $result->get_mask( package => $name);
+        my $mask = $config->get_mask( package => $name);
 
         my @bitmasks = _convert_mask_to_bits( $mask );
         if( @bitmasks ) {
@@ -275,13 +274,10 @@ sub _apply_config {
     }
 
     # Subroutine masks
-    for my $name ( $result->sub_names ) {
-
-        my $mask = $result->get_mask( 'sub' => $name);
+    for my $name ( $config->sub_names ) {
 
         $SUBROUTINE_MASK{$name} = [0,0];
-
-        my $mask = $result->read_sub($name);
+        my $mask = $config->get_mask( 'sub' => $name);
 
         my @bitmasks = _convert_mask_to_bits( $mask, 0, 0 );
         if( $bitmasks[0] == 0 and $bitmasks[1] == 0 ) {
@@ -293,6 +289,7 @@ sub _apply_config {
     }
 
     # Output
+    my $result; # TODO Fix this to work with Gene's code.
     my $out = $result->output;
     if( defined $out ) {
         $OUTPUT_TARGET    = $result->output;
@@ -311,7 +308,7 @@ sub _apply_config {
     my $default_message = $result->message_object;
     _configure_message_object( $default_message );
 
-    return $lex_masks;
+    return;
 }
 
 sub _get_bits {
@@ -595,9 +592,9 @@ sub import {
 
         # TODO - better error messages for bad settings.
         for ( keys %{$config->{import_as}} ) {
-            $import_as{$_} = $config->{import_as}{$_};
+            $import{$_} = $config->{import_as}{$_};
         }
-        for ( keys $config->{no_import} ) {
+        for ( keys %{$config->{no_import}} ) {
             delete $import{$_}
                 if exists $import{$_};
         }

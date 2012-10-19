@@ -4,6 +4,6 @@ use warnings;
 
 use Test::More tests => 1;
 
-use_ok( 'Log::Lager::CommandParser' );
+use_ok( 'Log::Lager::Config' );
 
 
