@@ -36,9 +36,13 @@ our $MASK_REGEX = join '', '[', MASK_CHARS, ']';
 
         *{$pair[0]} = sub {
             my $self = shift;
-            $self->toggle_mask( @pair, @_ )
-        } and @pair[0,1] = @pair[1,0]
-            for 1 .. 2;
+            $self->toggle_mask( @pair[0,1], @_ )
+        };
+
+        *{$pair[1]} = sub {
+            my $self = shift;
+            $self->toggle_mask( @pair[1,0], @_ )
+        };
     }
 
 }
@@ -66,7 +70,8 @@ sub new {
 sub parse_command {
     my $class = shift;
     my $command_string = join ' ', @_;
-    my @tokens = split /\s+/, $command_string;
+    $command_string =~ s/^\s*//;
+    my @tokens = split /\s+/s, $command_string;
 
     my $mask = $class->new();
 
@@ -80,7 +85,7 @@ sub parse_command {
         }
         else {
             Log::Lager::ERROR( "Invalid token '$_' in command string", $_, $command_string );
-            warn "Invalid token '$_' in command string '$command_string'";
+            die "Invalid token '$_' in command string '$command_string'\n";
             return;
         }
     }

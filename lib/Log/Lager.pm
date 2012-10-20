@@ -11,11 +11,29 @@ use JSON::XS;
 use IO::Handle;
 
 use Log::Lager::Mask;
+use Log::Lager::Config;
 use Log::Lager::Message;
 use Log::Lager::Spitter qw< >;
 
+# TODO document how this works in dev docs.
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
+
+my $DEFAULT_CONFIGURATION = {
+    base_mask              => <<END_BASE_MASK,
+    enable   FEW disable     IGTDU
+    fatal        nonfatal FEWIGTDU
+    stack        nostack  FEWIGTDU
+    pretty       compact  FEWIGTDU
+END_BASE_MASK
+    package_masks          => undef,
+    subroutine_masks       => undef,
+    disable_lexical_config => 0,
+    emitter_type           => 'Log::Lager::Spitter::StdErr',
+    emitter_options        => undef,
+    message_type           => 'Log::Lager::Message',
+    message_options        => undef,
+};
 
 # Global configuration
 our $CONFIG;
@@ -27,7 +45,7 @@ our %SUBROUTINE_MASK;    # Storage for sub specific masks
 
 # === Global config ===
 # Non-mask variables that store current configuration information
-our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
+our $ENABLE_LEXICAL;     # Boolean flag for lexical controls   # TODO fix initialization of lexon
 our $SPITTER;     # Log::Lager::Spitter object
 
 our $PREVIOUS_CONFIG_FILE = '';
@@ -84,6 +102,7 @@ our @DEFAULT_BASE = qw(
 );
 _parse_commands( [0,0], 'enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
+apply_config( Log::Lager::Config->new()->from_data($DEFAULT_CONFIGURATION) );
 
 # Bitmask manipulation
 sub _bitmask_to_mask_string {
@@ -192,6 +211,7 @@ sub _parse_commands {
 
     my $lex_masks = [@$masks];  # Copy lex masks to avoid leaky side effects
     my $mask = Log::Lager::Mask->parse_command( @commands );
+
     {   my @bitmasks = _convert_mask_to_bits( $mask );
         $lex_masks->[0] |=  $bitmasks[0];
         $lex_masks->[1] |=  $bitmasks[1];
@@ -207,12 +227,13 @@ sub _parse_commands {
 
 sub apply_config {
     my $config = shift || $CONFIG;
+    warn "CALLING APPLY CONFIG  __________________ @_";
+    warn Dumper $config;
 
     # apply changes to BASE
     my $bm = $config->get_mask( 'base' );
     if( Log::Lager::INTERNAL_TRACE() ) {
         printf STDERR "BASE MASK: %08X\n", $BASE_MASK;
-        use Data::Dumper; print Dumper $bm
     }
     if( defined $bm ) {
         my @bitmasks = _convert_mask_to_bits($bm);
@@ -259,7 +280,7 @@ sub apply_config {
     $ENABLE_LEXICAL = $lexon if defined $lexon;
     $ENABLE_LEXICAL = 1 if $] < 5.009;
 
-    _configure_message_object( $config->message_type, $config->message_options );
+    _configure_message_object( $config->get_message_settings );
 
     return;
 }
@@ -387,8 +408,7 @@ sub _handle_message {
     }
 
     if ($on_bit) {
-        my $spitter = $SPITTER;
-        $spitter  ||= Log::Lager::Spitter->default();
+        my $spitter = $SPITTER ? $SPITTER : Log::Lager::Spitter->default();
 
         if( Log::Lager::INTERNAL_TRACE() ) {
             STDERR->printflush( "SPIT with $spitter / $SPITTER - $msg\n" );
@@ -558,7 +578,7 @@ sub unimport {
         $^H{'Log::Lager::Log_enable'},
         $^H{'Log::Lager::Log_disable'}
     ];
-    $mask = _parse_commands( $mask , 'lexical disable', @commands );
+    $mask = _parse_commands( $mask , 'disable', @commands );
     $^H{'Log::Lager::Log_disable'} = $mask->[1];
 
     return;
