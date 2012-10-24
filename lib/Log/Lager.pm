@@ -521,6 +521,17 @@ sub load_config_file {
 # May also import log spitter functions if not already present.
 #
 # Injects a "lexical enable" at start of command
+#  
+#  {   config_file => 'path',
+#      config      => {},
+#      import      => [],
+#      import_as   => {
+#          FATAL => 'fatal',
+#      },
+#      no_import   => [],
+#  }
+#
+#
 sub import {
     shift;
 
@@ -533,18 +544,21 @@ sub import {
     # Got configuration hash
     # TODO flesh out configuration loading
     if( ref $_[0] ) {
-        my $config = shift;
-        configure( $config );
+        my $import_config = shift;
+
+        configure( $import_config->{config} )
+            if $import_config->{config};
 
         # TODO - better error messages for bad settings.
-        if ( %{$config->{import}} ) {
+        if ( %{$import_config->{import}} ) {
+
             %import = ();
-            @import{ keys %{$config->{import}} } = values %{$config->{import}};
+            @import{ keys %{$import_config->{import}} } = values %{$import_config->{import}};
         }
-        for ( keys %{$config->{import_as}} ) {
-            $import{$_} = $config->{import_as}{$_};
+        for ( keys %{$import_config->{import_as}} ) {
+            $import{$_} = $import_config->{import_as}{$_};
         }
-        for ( keys %{$config->{no_import}} ) {
+        for ( keys %{$import_config->{no_import}} ) {
             delete $import{$_}
                 if exists $import{$_};
         }
