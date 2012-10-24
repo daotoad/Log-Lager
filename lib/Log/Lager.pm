@@ -34,6 +34,8 @@ END_BASE_MASK
     message_type           => 'Log::Lager::Message',
     message_options        => undef,
 };
+#use Hash::Util qw<lock_hash>;
+#    lock_hash %$DEFAULT_CONFIGURATION;
 
 # Global configuration
 our $CONFIG;
@@ -102,7 +104,7 @@ our @DEFAULT_BASE = qw(
 );
 _parse_commands( [0,0], 'enable', $ENV{LOGLAGER} )
     if defined $ENV{LOGLAGER};
-apply_config( Log::Lager::Config->new()->from_data($DEFAULT_CONFIGURATION) );
+configure($DEFAULT_CONFIGURATION);
 
 # Bitmask manipulation
 sub _bitmask_to_mask_string {
@@ -225,6 +227,13 @@ sub _parse_commands {
     return $lex_masks;
 }
 
+sub configure {
+    my $data = shift;
+
+    my $config = Log::Lager::Config->new()->from_data($data);
+    apply_config( $config );
+}
+
 sub apply_config {
     my $config = shift || $CONFIG;
     warn "CALLING APPLY CONFIG  __________________ @_";
@@ -245,8 +254,10 @@ sub apply_config {
 
     # Package:
     for my $name ( $config->package_names ) {
+        warn "Got package $name";
 
-        my $mask = $config->get_mask( package => $name);
+        my $mask = $config->get_mask( package => $name );
+        warn "Got mask " . ref $mask;
 
         my @bitmasks = _convert_mask_to_bits( $mask );
         if( @bitmasks ) {
@@ -262,6 +273,7 @@ sub apply_config {
 
         $SUBROUTINE_MASK{$name} = [0,0];
         my $mask = $config->get_mask( 'sub' => $name);
+        warn "SUB $name - $mask";
 
         my @bitmasks = _convert_mask_to_bits( $mask, 0, 0 );
         if( $bitmasks[0] == 0 and $bitmasks[1] == 0 ) {
@@ -294,7 +306,12 @@ sub _get_bits {
     my $pretty_bit = $flag << PRETTY_BITSHIFT;
     my $stack_bit  = $flag << STACK_BITSHIFT;
 
-    my ($package, $sub, $hints) = (caller($frame))[0,3,10];
+    my ($package, $hints) = (caller($frame))[0,10];
+    my ($sub);
+    while( defined ( $sub = (caller(++$frame))[3] ) ) {
+        last unless $sub eq '(eval)';
+    }
+    $sub = $0 unless defined $sub;
 
     my $s_mask = exists $SUBROUTINE_MASK{$sub}  ? $SUBROUTINE_MASK{$sub}  : [0,0];
     my $p_mask = exists $PACKAGE_MASK{$package} ? $PACKAGE_MASK{$package} : [0,0];
@@ -520,6 +537,10 @@ sub import {
         configure( $config );
 
         # TODO - better error messages for bad settings.
+        if ( %{$config->{import}} ) {
+            %import = ();
+            @import{ keys %{$config->{import}} } = values %{$config->{import}};
+        }
         for ( keys %{$config->{import_as}} ) {
             $import{$_} = $config->{import_as}{$_};
         }

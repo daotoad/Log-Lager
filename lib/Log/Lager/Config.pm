@@ -88,6 +88,7 @@ sub from_data {
     my $self = shift;
     my $raw = shift;
 
+    warn Dumper $raw;
 #use Hash::Util qw<lock_hash>;
 #    lock_hash %$raw;
 
@@ -135,6 +136,7 @@ sub get_mask {
 
     return unless exists $self->{log_mask}{$type};
     return unless exists $self->{log_mask}{$type}{$name};
+
     return Log::Lager::Mask->parse_command($self->{log_mask}{$type}{$name});
 }
 
@@ -147,7 +149,7 @@ sub package_names {
 sub sub_names {
     my $self = shift;
 
-    return sort keys %{$self->{log_mask}{package}};
+    return sort keys %{$self->{log_mask}{sub}};
 }
 
 sub set_emitter {
