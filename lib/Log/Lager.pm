@@ -12,6 +12,9 @@ use IO::Handle;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
+use Log::Lager::Tap::Stderr;
+use Log::Lager::Tap::Syslog;
+use Log::Lager::Tap::File;
 
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
@@ -26,6 +29,8 @@ our %SUBROUTINE_MASK;    # Storage for sub specific masks
 # === Global config ===
 # Non-mask variables that store current configuration information
 our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
+
+our $TAP_OBJECT;         # Output tap 
 our $OUTPUT_TARGET;      # Name of output facility
 our $SYSLOG_IDENTITY;    # Idenitity if using syslog output
 our $SYSLOG_FACILITY;    # Facility if using syslog output
@@ -171,32 +176,40 @@ sub _apply_bits_to_mask {
 
 sub _configure_output {
 
-    if( $OUTPUT_FILE_HANDLE ) {
-        require IO::File;
-        $OUTPUT_FILE_HANDLE->close;
-        $OUTPUT_FILE_HANDLE = undef;
+    $DB::single = 1;
+
+    my $old_tap = $TAP_OBJECT || Log::Lager::Tap::Stderr->new();
+    my $new_tap;
+    eval {
+        $new_tap =
+          $OUTPUT_TARGET eq 'stderr'
+        ? Log::Lager::Tap::Stderr->new()
+        : $OUTPUT_TARGET eq 'file'
+        ? Log::Lager::Tap::File->new(
+            file_name   => $OUTPUT_FILE_NAME,
+            permissions => $OUTPUT_FILE_PERM
+          )
+        : $OUTPUT_TARGET eq 'syslog'
+        ? Log::Lager::Tap::Syslog->new(
+            identity => $SYSLOG_IDENTITY,
+            facility => $SYSLOG_FACILITY,
+          )
+        : undef;
+    };
+    if( $new_tap ) {
+        eval {
+            $new_tap->select();
+            $old_tap->deselect();
+            $old_tap = undef;
+            1;
+        } or do {
+            #TODO
+            $new_tap = undef;
+        };
     }
 
-    if( $SYSLOG_OPENED ) {
-        require Sys::Syslog;
-        Sys::Syslog::closelog();
-        $SYSLOG_OPENED = 0;
-    }
-
-    if( $OUTPUT_TARGET eq 'stderr' ) {
-        $OUTPUT_FUNCTION = \&_output_stderr;
-    }
-    elsif( $OUTPUT_TARGET eq 'file' ) {
-
-        _open_log_file();
-    }
-    elsif( $OUTPUT_TARGET eq 'syslog' ) {
-        require Sys::Syslog;
-        $OUTPUT_FUNCTION = \&_output_syslog;
-        Sys::Syslog::openlog( $SYSLOG_IDENTITY, 'ndelay,nofatal', $SYSLOG_FACILITY );
-        $SYSLOG_OPENED = 1;
-    }
-
+    $TAP_OBJECT = $new_tap || $old_tap || Log::Lager::Tap::Stderr->new()->select();
+    $OUTPUT_FUNCTION = $TAP_OBJECT->gen_output_function();
 }
 
 sub _configure_message_object {
@@ -430,64 +443,6 @@ sub _handle_message {
     return @return_values    if wantarray;
     return $return_values[0] if @return_values <= 1;
     die "Have multiple return values when wantarray is false\n";
-}
-
-# Output type specific handlers
-sub _output_stderr {
-    my ($level, $message) = @_;
-    STDERR->printflush( "$message" );
-    return;
-}
-
-sub _output_syslog {
-    my ($level, $message) = @_;
-    my $syslog_level = $MASK_CHARS{$level}->[SYSLOG_LEVEL];
-    Sys::Syslog::syslog( $syslog_level, "%s", $message );
-    return;
-}
-
-sub _output_file {
-    shift;
-
-    if ( $OUTPUT_FILE_CHECK_TIME + LOG_FILEHANDLE_CHECK_FREQ <= time ) {
-        $OUTPUT_FILE_CHECK_TIME = time;
-
-        my $inode = (stat $OUTPUT_FILE_NAME)[STAT_INODE];
-        $inode = 0 unless $inode;
-
-        if ( ! $OUTPUT_FILE_HANDLE
-            or $OUTPUT_FILE_INODE  != $inode
-        ) {
-            _open_log_file();
-        }
-    }
-
-    $OUTPUT_FILE_HANDLE or return &_output_stderr;
-
-    $OUTPUT_FILE_HANDLE->printflush( @_ );
-    return;
-}
-
-sub _open_log_file {
-
-    require IO::File;
-    my @output_stat = stat($OUTPUT_FILE_NAME);
-    my $file_exists = -e $OUTPUT_FILE_NAME;
-    $OUTPUT_FILE_HANDLE = IO::File->new( $OUTPUT_FILE_NAME, '>>', $OUTPUT_FILE_PERM );
-
-    if( $OUTPUT_FILE_HANDLE ) {
-
-        @output_stat = stat($OUTPUT_FILE_HANDLE)
-            unless $file_exists;
-
-        $OUTPUT_FILE_INODE = $output_stat[STAT_INODE];
-        $OUTPUT_FILE_CHECK_TIME = time;
-        $OUTPUT_FUNCTION = \&_output_file;
-    }
-
-    # Delay logging error until output falls back on STDERR.
-    $OUTPUT_FILE_HANDLE or ERROR("Unable to open '$OUTPUT_FILE_NAME' for logging.", $!);
-
 }
 
 

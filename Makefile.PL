@@ -42,7 +42,13 @@ my %WriteMakefileArgs = (
   },
   'VERSION' => '0.04.08',
   'test' => {
-    'TESTS' => 't/*.t t/CommandParser/*.t t/Message/*.t'
+    'TESTS' => join ' ',
+        qw{ t/*.t 
+            t/CommandParser/*.t
+            t/Message/*.t
+            t/Tap/*.t
+            t/Tap/File/*.t
+        }
   }
 );
 
