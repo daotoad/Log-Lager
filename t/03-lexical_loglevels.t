@@ -57,17 +57,17 @@ Log::Lager::apply_command('message BOOGER');
 run_test_group();
 
 sub run_test_group {
-for my $set_spec ( @TEST_SPECS ) {
-    my ($cmd, $set) = @$set_spec;
+    for my $set_spec ( @TEST_SPECS ) {
+        my ($cmd, $set) = @$set_spec;
 
-    for my $test ( @$set ) {
-        my ($level, $expect) = @$test;
-    
-        my $result = exec_loglevel( $cmd, $level );
-        check_results( $result, $expect, $level );
+        for my $test ( @$set ) {
+            my ($level, $expect) = @$test;
+        
+            my $result = exec_loglevel( $cmd, $level );
+            check_results( $result, $expect, $level );
+        }
+
     }
-
-}
 }
 
 
@@ -99,7 +99,7 @@ sub exec_loglevel {
     
 END
 
-    warn "$cut";
+#warn "$cut";
 
     eval $cut or do { 
         open my $fh, '>>', $path;
@@ -124,8 +124,11 @@ sub check_results {
     my $expect  = shift;
     my $level   = shift;
 
-    warn "\n$level => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
-    warn "RESULTS:\n".join("", @$results)."\n";
+    #warn "\n$level => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
+    #warn "RESULTS:\n".join("", @$results)."\n";
+    #diag " => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
+
+    #diag $_ for @$results;
 
     my $cmp = ! $expect->{enabled}   ? '<'
             : $expect->{stack_trace} ? '>'
@@ -142,6 +145,8 @@ sub check_results {
     my $json = $results->[1];
 
     # TODO parse etc.
+
+    #diag "===================================================";
 
 }
 
