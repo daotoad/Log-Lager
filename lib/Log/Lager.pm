@@ -12,7 +12,7 @@ use IO::Handle;
 
 use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Message;
-use Log::Lager::Tap::Stderr;
+use Log::Lager::Tap::STDERR;
 use Log::Lager::Tap::Syslog;
 use Log::Lager::Tap::File;
 
@@ -22,15 +22,18 @@ use Log::Lager::Tap::File;
 # Global configuration
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
-our $BASE_MASK;          # Base mask that all other masks are calculated relative to
+our $BASE_MASK = 0;          # Base mask that all other masks are calculated relative to
 our %PACKAGE_MASK;       # Storage for package specific masks
 our %SUBROUTINE_MASK;    # Storage for sub specific masks
 
 # === Global config ===
 # Non-mask variables that store current configuration information
 our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
+our $DEFAULT_TAP_CLASS = 'Log::Lager::Tap::STDERR';
+our $TAP_CLASS = $DEFAULT_TAP_CLASS;          # Output tap 
+our $TAP_CONFIG = {};    # Output tap configuration 
+our $TAP_OBJECT;         # Output tap configuration 
 
-our $TAP_OBJECT;         # Output tap 
 our $OUTPUT_TARGET;      # Name of output facility
 our $SYSLOG_IDENTITY;    # Idenitity if using syslog output
 our $SYSLOG_FACILITY;    # Facility if using syslog output
@@ -46,9 +49,22 @@ our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 our $PREVIOUS_CONFIG_FILE = '';
 our $CONFIG_LOAD_TIME     = 0;
 our $DEFAULT_MESSAGE_CLASS = 'Log::Lager::Message';
+our $MESSAGE_CLASS = $DEFAULT_MESSAGE_CLASS;
+our $MESSAGE_CONFIG = {};
 
-use constant STAT_INODE => 1;
-use constant LOG_FILEHANDLE_CHECK_FREQ => 60; # Seconds
+our $DEFAULT_CONFIG = {
+    lexical_control => 1,
+    levels => {
+        base => ' enable  FEW      disable TDIGU'
+              . ' compact FEWTDIGU pretty '
+              . ' fatal   F        nonfatal EWTDIGU'
+              . ' stack            nostack  FEWTDIGU',
+        package => {},
+        sub => {},
+    },
+    message => { 'Log::Lager::Message' => {} },
+    tap     => { STDERR => {} },
+};
 
 # === Configure Log Levels ===
 use constant {      # Indexes of the various elements in the LOG_LEVELS ARRAY
@@ -91,14 +107,16 @@ my $MASK_REGEX = join '', keys %MASK_CHARS;
 }
 
 # === Initialize masks  ===
-our @DEFAULT = qw( base enable FEW fatal F lexon stderr fileperm 644 );
-_parse_commands( [0,0], @DEFAULT );
-_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
-    if defined $ENV{LOGLAGER};
+#our @DEFAULT = qw( base enable FEW fatal F lexon stderr fileperm 644 );
+#_parse_commands( [0,0], @DEFAULT );
+#_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
+#    if defined $ENV{LOGLAGER};
+Log::Lager->configure();
 
 
 
 # Bitmask manipulation
+
 sub _bitmask_to_mask_string {
     my $bitmask = shift;
     my $shift   = shift;
@@ -145,8 +163,8 @@ sub _convert_mask_to_bits {
     ) {
         my ( $shift, $on_method, $off_method ) = @$_;
 
-        my $on_bits  = _mask_string_to_bitmask($mask->$on_method);
-        my $off_bits = _mask_string_to_bitmask($mask->$off_method);
+        my $on_bits  = _mask_string_to_bitmask($mask->get_mask($on_method));
+        my $off_bits = _mask_string_to_bitmask($mask->get_mask($off_method));
         $on  |= $on_bits  << $shift;
         $off |= $off_bits << $shift;
     }
@@ -157,17 +175,16 @@ sub _convert_mask_to_bits {
 sub _apply_bits_to_mask {
     my ($on_bits, $off_bits, $mask ) = @_;
 
-    $mask->enable(  _bitmask_to_mask_string( $on_bits,   ENABLE_BITSHIFT ));
-    $mask->disable( _bitmask_to_mask_string( $off_bits,  ENABLE_BITSHIFT ));
+    for ( [enable => disable => ENABLE_BITSHIFT],
+          [stack  => nostack => STACK_BITSHIFT],
+          [pretty => compact => PRETTY_BITSHIFT],
+          [fatal  => nonfatal => FATALITY_BITSHIFT]
+      ) {
+        my ( $on, $off, $shift) = @$_;
 
-    $mask->stack(   _bitmask_to_mask_string( $on_bits,   STACK_BITSHIFT ));
-    $mask->nostack( _bitmask_to_mask_string( $off_bits,  STACK_BITSHIFT ));
-
-    $mask->pretty(   _bitmask_to_mask_string( $on_bits,  PRETTY_BITSHIFT ));
-    $mask->compact( _bitmask_to_mask_string( $off_bits,  PRETTY_BITSHIFT ));
-
-    $mask->fatal(    _bitmask_to_mask_string( $on_bits,  FATALITY_BITSHIFT ));
-    $mask->nonfatal( _bitmask_to_mask_string( $off_bits, FATALITY_BITSHIFT ));
+        $mask->set_mask( $on,  _bitmask_to_mask_string( $on_bits, $shift  ));
+        $mask->set_mask( $off, _bitmask_to_mask_string( $off_bits, $shift ));
+    }
 
     return;
 }
@@ -175,9 +192,6 @@ sub _apply_bits_to_mask {
 # Configuration
 
 sub _configure_output {
-
-    $DB::single = 1;
-
     my $old_tap = $TAP_OBJECT || Log::Lager::Tap::Stderr->new();
     my $new_tap;
     eval {
@@ -320,6 +334,8 @@ sub _get_bits {
     my $pretty_bit = $flag << PRETTY_BITSHIFT;
     my $stack_bit  = $flag << STACK_BITSHIFT;
 
+    $DB::single=1;
+
     my ($package, $sub, $hints) = (caller($frame))[0,3,10];
 
     my $s_mask = exists $SUBROUTINE_MASK{$sub}  ? $SUBROUTINE_MASK{$sub}  : [0,0];
@@ -414,7 +430,8 @@ sub _handle_message {
     }
     else {
         return if !$on_bit;
-        $msg = $DEFAULT_MESSAGE_CLASS->new(
+        $msg = $MESSAGE_CLASS->new(
+            %$MESSAGE_CONFIG,
             context         => 0,
             loglevel        => $MASK_CHARS{$level}[FUNCTION],
             message         => \@messages,
@@ -455,6 +472,141 @@ sub apply_command {
     _parse_commands( [0,0], 'base enable', @_ );
 }
 
+sub apply_config {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ($config) = @_;
+    my %merged = ( %$DEFAULT_CONFIG, %$config );
+
+    eval {
+        my $parsed_base = _parse_log_level( $merged{levels}{base} );
+        my $new_base = $parsed_base->[0] & ~$parsed_base->[1];
+        my $new_package_levels = {
+            map {
+                $_ => _parse_log_level( $merged{levels}{package}{$_} )
+            }  keys %{$merged{levels}{package}}
+        };
+        my $new_sub_levels = {
+            map {
+                $_ => _parse_log_level( $merged{levels}{sub}{$_} )
+            }  keys %{$merged{levels}{sub}}
+        };
+        my ( $new_message_class, $new_message_config )
+            = _load_message_class( $merged{message}  );
+        my ( $new_tap_class, $new_tap_config, $new_tap_object )
+            = _load_tap_class( $merged{tap}  );
+        my $new_lexical_enable = $merged{lexical_control};
+
+
+        $BASE_MASK          = $new_base;
+        %PACKAGE_MASK       = %$new_package_levels;
+        %SUBROUTINE_MASK    = %$new_sub_levels;
+        $MESSAGE_CLASS      = $new_message_class;
+        $MESSAGE_CONFIG     = $new_message_config || {};
+        $TAP_CLASS          = $new_tap_class;
+        $TAP_OBJECT         = $new_tap_object;
+        $TAP_CONFIG         = $new_tap_config || {};
+        1;
+    } or do {
+        ERROR( 'Invalid configuration', $@ );
+    };
+
+}
+
+sub _load_lager_class {
+    my ( $class, $hierarchy ) = @_;
+
+    $class =~ /^\w+(::\w+)*$/
+        or die "Invalid class name $class";
+
+    my $short_class = "${hierarchy}::$class"
+        if defined $hierarchy;
+
+    my $got_class;
+    eval "use $class; \$got_class='$class'; 1"
+    or eval "use Log::Lager::$short_class; \$got_class = 'Log::Lager::$short_class'; 1"
+    or die "Unable to load class $class";
+
+    return $got_class;
+}
+
+sub _load_message_class {
+    my ( $message_config ) = @_;
+
+    my ($class, $config) = %$message_config;
+
+    $class = _load_lager_class($class, 'Message');
+
+    # TODO Validate config here.
+    
+    return $class;
+}
+
+sub _load_tap_class {
+    my ( $tap_config ) = @_;
+
+    my ($class, $config) = %$tap_config;
+
+    $class = _load_lager_class($class, 'Tap');
+
+    # TODO Validate config here.
+    my $obj = $class->new(%$config);
+    
+    return $class;
+}
+
+sub dump_config {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+
+    my %cfg = (
+        lexical_control => 1,
+        tap     => {},
+        message => {},
+        levels => {
+            base    => undef,
+            package => {},
+            sub     => {},
+        },
+    );
+    $cfg{lexical_control} = $ENABLE_LEXICAL;
+
+    my $mask = Log::Lager::Mask->new();
+    _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $mask );
+    $cfg{levels}{base} = "$mask";
+
+    for (keys %PACKAGE_MASK) {
+        my $mask = Log::Lager::Mask->new();
+        _apply_bits_to_mask( @{$PACKAGE_MASK{$_}}, $mask );
+        $cfg{levels}{package}{$_} = "$mask";
+    }
+
+    for (keys %SUBROUTINE_MASK) {
+        my $mask = Log::Lager::Mask->new();
+        _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}}, $mask );
+        $cfg{levels}{sub}{$_} = "$mask";
+    }
+
+    $cfg{message}{$MESSAGE_CLASS} = {%$MESSAGE_CONFIG};
+    $cfg{tap}{$TAP_CLASS} = {%$TAP_CONFIG};
+
+    return \%cfg;
+}
+
+sub _parse_log_level {
+    my ($ll) = @_;
+    my $group  = $Log::Lager::Mask::GROUP_REGEX;
+    my $levels = "[$MASK_REGEX]*";
+    
+    $ll =~ /^\s*(|($group)(\s+$levels)*)(\s+($group)(\s+$levels)*)*\s*$/
+        or croak "Invalid log level: $ll";
+
+    my $mask = Log::Lager::Mask->new();
+    $mask->apply_string($ll);
+
+    my @bitmask = _convert_mask_to_bits( $mask, 0, 0 );
+
+    return \@bitmask;
+}
+
 # Load a configuration file as needed.
 # This function is looks for changes in the configured file before processing it.
 # It is safe to call this function a lot.
@@ -475,7 +627,6 @@ sub load_config_file {
 
     open my $fh, '<', $path
         or do {
-            warn "Error opening config file '$path': $!\n";
             ERROR( "Error opening config file", $path, $! );
             return;
         };
@@ -592,24 +743,157 @@ sub log_level {
     );
 
     # Package
-    _apply_bits_to_mask( @{$PACKAGE_MASK{$_}}, $r->package($_) )
+    _apply_bits_to_mask( @{$PACKAGE_MASK{$_}||[0,0]}, $r->package($_) )
         for keys %PACKAGE_MASK;
 
     # Sub
-    _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}}, $r->sub($_) )
+    _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}||[0,0]}, $r->sub($_) )
         for keys %SUBROUTINE_MASK;
 
 
-    $r->output( $OUTPUT_TARGET );
-    $r->syslog_identity( $SYSLOG_IDENTITY );
-    $r->syslog_facility( $SYSLOG_FACILITY );
-    $r->file_name( $OUTPUT_FILE_NAME );
-    $r->file_perm( sprintf "%O", $OUTPUT_FILE_PERM );
+        #$r->output( $OUTPUT_TARGET );
+        #$r->syslog_identity( $SYSLOG_IDENTITY );
+        #$r->syslog_facility( $SYSLOG_FACILITY );
+        #$r->file_name( $OUTPUT_FILE_NAME );
+        #$r->file_perm( sprintf "%O", $OUTPUT_FILE_PERM );
 
-    $r->lexicals_enabled( $ENABLE_LEXICAL );
+        #$r->lexicals_enabled( $ENABLE_LEXICAL );
 
     return $r->as_string;
 }
+
+# Accessorize configuration
+sub configure_lexical_control {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ( $enable ) = @_;
+
+    $ENABLE_LEXICAL = $enable ? 1 : 0;
+
+    return;
+}
+
+sub configure_default_message {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ( $class, $config ) = @_;
+
+    $class = _load_message_class( {$class, $config} );
+
+    $MESSAGE_CLASS  = $class;
+    $MESSAGE_CONFIG = { %$config };
+
+    return;
+}
+
+sub configure_tap {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ( $class, $config ) = @_;
+
+    $class = _load_tap_class( {$class, $config} );
+
+    $TAP_CLASS  = $class;
+    $TAP_CONFIG = { %$config };
+    $TAP_OBJECT = $TAP_CLASS->new( %$TAP_OBJECT )
+        or die "Error creating Tap object.\n";
+    # TODO $TAP_OBJECT
+
+    return;
+}
+
+sub configure_base_log_level {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ($level) = @_;
+    my $mask = _parse_log_level( $level );
+    $BASE_MASK = $mask->[0] & ~ $mask->[1];
+
+    return;
+}
+
+sub configure_package_log_level {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ($package, $level) = @_;
+
+    if ( defined $level and length $level ) {
+        $level = _parse_log_level( $level );
+        $PACKAGE_MASK{$package}=$level;
+    }
+    else {
+        delete $PACKAGE_MASK{$package};
+    }
+
+    return;
+}
+
+sub configure_sub_log_level {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my ($sub, $level) = @_;
+
+    if ( defined $level and length $level ) {
+        $level = _parse_log_level( $level );
+        $SUBROUTINE_MASK{$sub}=$level;
+    }
+    else {
+        delete $SUBROUTINE_MASK{$sub};
+    }
+
+    return;
+}
+
+
+sub configure {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+    my %config = @_;
+
+    my %orig = (
+        lex  => \$ENABLE_LEXICAL,
+        base => \$BASE_MASK,
+        subs => \%SUBROUTINE_MASK,
+        pkg  => \%PACKAGE_MASK,
+        msg_class  => \$MESSAGE_CLASS,
+        msg_config => \$MESSAGE_CONFIG,
+        tap_class  => \$TAP_CLASS,
+        tap_config => \$TAP_CONFIG,
+        tap_object => \$TAP_OBJECT,
+    );
+
+
+    eval {
+        local $ENABLE_LEXICAL;
+        local $BASE_MASK;
+        local %SUBROUTINE_MASK;
+        local %PACKAGE_MASK;
+        local $MESSAGE_CLASS;
+        local $MESSAGE_CONFIG;
+        local $TAP_CLASS;
+        local $TAP_CONFIG;
+        local $TAP_OBJECT;
+
+        my %merged = ( %$DEFAULT_CONFIG, %config );
+
+        configure_lexical_control( $merged{lexical_control} );
+        configure_base_log_level( $merged{levels}{base} );
+        configure_sub_log_level( $_, $merged{levels}{sub}{$_} )
+            for keys %{$merged{levels}{sub}};
+        configure_package_log_level( $_, $merged{levels}{package}{$_} )
+            for keys %{$merged{levels}{package}};
+        configure_default_message( %{$merged{message} } ); 
+        configure_tap( %{$merged{tap} } ); 
+
+        ${$orig{lex}}        = $ENABLE_LEXICAL;
+        ${$orig{base}}       = $BASE_MASK;
+        %{$orig{subs}}       = %SUBROUTINE_MASK;
+        %{$orig{pkg}}        = %PACKAGE_MASK;
+        ${$orig{msg_class}}  = $MESSAGE_CLASS;
+        ${$orig{msg_config}} = $MESSAGE_CONFIG || {};
+        ${$orig{tap_class}}  = $TAP_CLASS;
+        ${$orig{tap_config}} = $TAP_CONFIG || {};
+        ${$orig{tap_object}} = $TAP_OBJECT;
+
+        1;
+    } or do {
+        die;
+    };
+}
+
 
 1;
 

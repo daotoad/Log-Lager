@@ -50,4 +50,16 @@ Log::Lager->apply_command( $log_level );
 my $arrows = Log::Lager->log_level;
 is( $arrows, $round_trip, 'Round trip OK' );
 
+$DB::single = 1;
+Log::Lager->apply_config( { 
+    lexical_control => 1,
+    levels => {
+        base => 'enable FEW',
+        package => { Foo => 'enable FEWTDIGU'},
+        sub => {},
+    },
+});
+
+use Data::Dumper;
+warn Dumper( Log::Lager->dump_config() );
 

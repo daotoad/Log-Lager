@@ -1,13 +1,63 @@
 Before 1.0
   THEME: Make it work
     - Complete a reasonable amount of unit tests.
+        IN PROGRESS
     - Update POD in modules
     - Message objects must be able to indicate a desire to have bits set by event handler.
     - Code changes only as needed.
+  THEME: Custom message class
+    - Allow specification of custom message class for log lager message objects.
+    DONE
+  THEME: Output methods refactored as pluggable classes.
+    - Allow specification of output channel as a class.
+    DONE
+  THEME: Configuration separation
+    - Make lexical configuration distinct from config file based configuration.
+    - Lexical configuration should only be able to control lexical log level.
+    - Everything else is controlled by config file / programmatic munging.
+    DONE
+    - Configuration clean up.
+    - Unify and remove configuration cruft.
 
 After 1.0 - i
   THEME: More injections.
     - Provide a Log::Lager object for use with packages that want to consume a log object.  Probably using Log::Any as an adapter.
     - Allow Messages to take objects for use as Formatters and Emitters.
     - Allow Lager to provide default Formatter and Emitter objects.
+
+Split configuration---
+    1. Some items belong in lexical config
+        enable disable stack nostack fatal nonfatal pretty compact
+    2. Other things do not.
+        stderr file nolex syslog base package sub message
+
+Methods --
+   add: get/set_base_level
+   update: load_config_file
+   incompatible: log_level : return computed loglevel as string
+   add: dump_config : return config as string
+
+Config Format --
+  JSON 
+{
+    levels => {
+        base =>  'enable FEWTDIGU nonfatal FEWTDIGU fatal stack nostack FEWTDIGU pretty compact FEWTDIGU',
+        package   => {
+            'Package::Name' => 'enable FEWTDIGU nonfatal FEWTDIGU fatal stack nostack FEWTDIGU pretty compact FEWTDIGU',
+        },
+
+        sub   => {
+            'Fully::Qualified::sub_name' => 'enable FEWTDIGU nonfatal FEWTDIGU fatal stack nostack FEWTDIGU pretty compact FEWTDIGU',
+        },
+    },
+
+    message => {
+        Log::Lager::Message::Standard => { whatever config needed },
+    },
+
+    tap => {
+        Log::Lager::Tap::File => { file_name => 'foo' },
+    },
+
+}
 

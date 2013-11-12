@@ -267,6 +267,9 @@ BEGIN {
     our $GROUP_REGEX = join '|', GROUPS;
     use constant MASK_CHARS => qw( F E W I D T G U );
     our $MASK_REGEX = join '', MASK_CHARS;
+    my %GROUP = map {$_ => 1} GROUPS;
+
+    my %OPPOSITE = (%GROUP, reverse %GROUP);
 
 
     sub new {
@@ -279,20 +282,49 @@ BEGIN {
         return $self;
     }
 
+    sub set_mask {
+        my( $self, $on, $chars ) = @_;
+
+        my $off = $OPPOSITE{$on}
+            or die "Illegal group '$on'";
+
+        my @chars = split //, $chars;
+
+        return unless @chars;
+        $self->{__IS_SET__} = 1;
+
+        for my $c ( @chars ) {
+            $self->{$on}{$c}  = 1;
+            $self->{$off}{$c} = 0
+                if exists $self->{$off}{$c};
+        }
+
+        return $self;
+    }
+
+    sub get_mask {
+        my( $self, $on, $chars ) = @_;
+        return join '',
+            grep $self->{$on}{$_},
+            MASK_CHARS;
+    }
+
     sub toggle_mask {
         my $self  = shift;
         my $on    = shift;
         my $off   = shift;
         my $chars = shift || '';
 
-        $self->{__IS_SET__} = 1;
-
         my @chars = split //, $chars;
 
-        for my $c ( @chars ) {
-            $self->{$on}{$c}  = 1;
-            $self->{$off}{$c} = 0
-                if exists $self->{$off}{$c};
+        if (@chars) {
+            $self->{__IS_SET__} = 1;
+
+            for my $c ( @chars ) {
+                $self->{$on}{$c}  = 1;
+                $self->{$off}{$c} = 0
+                    if exists $self->{$off}{$c};
+            }
         }
         return join '',
             grep $self->{$on}{$_},
@@ -329,12 +361,12 @@ BEGIN {
         $self->toggle_mask( nostack => stack => @_ );
     }
 
-    sub fatal {
+    sub nonfatal {
         my $self = shift;
         $self->toggle_mask( nonfatal => fatal => @_ );
     }
 
-    sub nonfatal {
+    sub fatal {
         my $self = shift;
         $self->toggle_mask( fatal => nonfatal => @_ );
     }
@@ -371,6 +403,23 @@ BEGIN {
         return $self->{__IS_SET__};
     }
 
+    sub apply_string {
+        my $self = shift;
+        my $log_level_string = shift;
+
+        my @tokens = split /\s+/, $log_level_string;
+
+        my $level = 'enable';
+        for my $token ( @tokens ) {
+            if( $GROUP{$token} ) {
+                $level = $token;
+            }
+            else {
+                $self->$level($token);
+            }
+        }
+            
+    }
 }
 
 
