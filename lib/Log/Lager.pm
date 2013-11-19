@@ -687,17 +687,7 @@ sub import {
         }
     }
 
-    if( @_ ) {
-        # Apply log level mask
-        my $mask = [
-            $^H{'Log::Lager::Log_enable'},
-            $^H{'Log::Lager::Log_disable'}
-        ];
-        $mask = _parse_commands( $mask, 'lexical enable',  @_ ) if @_;
-
-        $^H{'Log::Lager::Log_enable'}  = defined($mask->[0]) ? $mask->[0] : 0;
-        $^H{'Log::Lager::Log_disable'} = defined($mask->[1]) ? $mask->[1] : 0;
-    }
+    apply_log_level( [ 'lexical enable', @_], 1 );
 
     return;
 }
@@ -713,12 +703,7 @@ sub unimport {
     croak "Use 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
-    my $mask = [
-        $^H{'Log::Lager::Log_enable'},
-        $^H{'Log::Lager::Log_disable'}
-    ];
-    $mask = _parse_commands( $mask , 'lexical disable', @commands );
-    $^H{'Log::Lager::Log_disable'} = $mask->[1];
+    apply_log_level( [ 'lexical disable', @_], 1 );
 
     return;
 }
@@ -894,6 +879,35 @@ sub configure {
     };
 }
 
+sub _PKGCALL {
+    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
+}
+# ---------------- NEW INTERFACE BELOW THIS LINE ----------------
+
+
+# take passed in log level string(s) and sets lexical level
+sub apply_log_level {
+    &_PKGCALL;
+    my ( $log_levels, $caller_level ) = 
+        ref $_[0] ? ( $_[0], $_[1] )
+                  : ( [@_] );
+    $caller_level += 1;   
+
+    my $hints = (caller($caller_level))[10];
+
+    # Apply log level mask
+    my $mask = [
+        $^H{'Log::Lager::Log_enable'},
+        $^H{'Log::Lager::Log_disable'}
+    ];
+    $mask = _parse_commands( $mask, @$log_levels )
+        if @$log_levels;
+
+    $^H{'Log::Lager::Log_enable'}  = defined($mask->[0]) ? $mask->[0] : 0;
+    $^H{'Log::Lager::Log_disable'} = defined($mask->[1]) ? $mask->[1] : 0;
+
+    return;
+}
 
 1;
 
