@@ -1,4 +1,5 @@
 package Log::Lager::Tap::STDERR;
+our $STDERR; BEGIN { $STDERR = \STDERR };
 our @ISA = qw< Log::Lager::Tap >;
 
 use strict;
@@ -9,12 +10,18 @@ $Carp::Internal{__PACKAGE__}++;
 
 use constant {
     HANDLE      => 0,
+    RESTORE     => 1,
 };
 
 sub new {
     my ($class, %opt) = @_;
 
+    my $restore = delete $opt{restore};
+
     my $self = bless [], $class;
+
+    $self->[RESTORE] = $restore;
+
     my @bad = sort keys %opt;
     croak "Invalid options for new Log::Lager::Output::Stderr - @bad"
         if @bad;
@@ -29,9 +36,12 @@ sub dump_config {
         $self = $class;
         $class = ref $class;
     }
+    my $restore = $self->[RESTORE];
+    my $tap = $class;
+    $tap =~ s/^Log::Lager::Tap:://;
 
     my @config = (
-       $class->_tap_name() => { } 
+       $tap => { restore => $restore } 
     );
 
     return @config;
@@ -52,7 +62,7 @@ sub select {
         $self->deselect();
     }
 
-    $self->[HANDLE] = \*STDERR;
+    $self->[HANDLE] = $self->[RESTORE] ? $STDERR : \*STDERR;
 
     return $self;
 }
@@ -65,7 +75,7 @@ sub gen_output_function {
         my $fh = $self->[HANDLE]
             or die "No output filehandle";
 
-        $fh->printflush(@_);
+        $fh->printflush($message);
         return;
     };
 }
