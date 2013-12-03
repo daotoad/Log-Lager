@@ -19,7 +19,6 @@ use_ok( 'Log::Lager' ) or BAIL_OUT("Error loading Log::Lager.");
 #     G => [ 0, 0, 0, 0 ],
 # };
 
-warn Dumper Log::Lager->dump_config();
 
 testbits( "Default values.", [
        #on die pretty stack
@@ -36,7 +35,7 @@ testbits( "Default values.", [
 SKIP: {
   skip "lexical not supported before perl 5.9", 1 unless $] >= 5.009;
 
-  use Log::Lager  'lexical enable FEWIDTUG pretty FEWIDTUG';
+  use Log::Lager  'enable FEWIDTUG pretty FEWIDTUG';
 testbits( "Lexical values applied.", [
        #on die pretty stack
       F => [ 1, 1, 1, 0 ],

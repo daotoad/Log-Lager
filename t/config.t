@@ -6,12 +6,10 @@ use Log::Lager;
 use Data::Dumper;
 subtest "Everything on" => sub {
     $DB::single=1;
-    Log::Lager->apply_config({
-            levels => {base => <<BASE},
-enable FEWTDIGU pretty FEWTDIGU fatal FEWTDIGU stack FEWTDIGU
-BASE
+    Log::Lager->set_config({
+            levels => {base => 'enable FEWTDIGU pretty FEWTDIGU fatal FEWTDIGU stack FEWTDIGU'},
     });
-    my $cfg = Log::Lager->dump_config();
+    my $cfg = Log::Lager->get_config();
     diag Dumper $cfg;
     ok( $cfg->{lexical_control}, "Lexical controls are enabled" );
 
@@ -36,8 +34,8 @@ BASE
 
 subtest "Default configuration is correct" => sub {
 
-    Log::Lager->apply_config({});
-    my $cfg = Log::Lager->dump_config();
+    Log::Lager->set_config({});
+    my $cfg = Log::Lager->get_config();
     diag Dumper $cfg;
     ok( $cfg->{lexical_control}, "Lexical controls are enabled" );
 
