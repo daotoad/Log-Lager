@@ -29,7 +29,7 @@ sub new {
     $self->[NEXT_CHECK] = 0;
 
     my @bad = sort keys %opt;
-    croak "Invalid parameters for new Log::Lager::Output::File - @bad"
+    croak "Invalid parameters for new Log::Lager::Tap::File - @bad"
         if @bad;
 
     croak "Required parameter 'file_name' is not defined"

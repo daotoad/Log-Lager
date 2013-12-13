@@ -10,7 +10,6 @@ use Scalar::Util qw(reftype);
 use JSON::XS;
 use IO::Handle;
 
-use Log::Lager::CommandParser qw( parse_command );
 use Log::Lager::Mask;
 use Log::Lager::Message;
 use Log::Lager::Tap::STDERR;
@@ -26,6 +25,7 @@ our %PACKAGE_MASK;       # Storage for package specific masks
 our %SUBROUTINE_MASK;    # Storage for sub specific masks
 
 # === Global config ===
+our $CONFIG_SOURCE;
 # Non-mask variables that store current configuration information
 our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
 our $TAP_CLASS;          # Output tap 
@@ -300,7 +300,7 @@ sub _handle_message {
            die "$message\n";
         }
 
-        load_config_file();
+        load_config();
     }
 
     die $return_exception    if defined $return_exception;
@@ -308,15 +308,6 @@ sub _handle_message {
     return @return_values    if wantarray;
     return $return_values[0] if @return_values <= 1;
     die "Have multiple return values when wantarray is false\n";
-}
-
-
-# === Logging configuration functions ===
-# These functions allow access to logging configuration.
-
-# Apply a generic command set to the current configuration
-sub apply_command {
-    croak "REMOVED DUE TO CRAPPINESS";
 }
 
 
@@ -332,7 +323,7 @@ sub _load_lager_class {
     my $got_class;
     eval "use $class; \$got_class='$class'; 1"
     or eval "use Log::Lager::$short_class; \$got_class = 'Log::Lager::$short_class'; 1"
-    or die "Unable to load class $class";
+    or croak "Unable to load class $class";
 
     return $got_class;
 }
@@ -381,61 +372,6 @@ sub _parse_log_level {
     return \@bitmask;
 }
 
-# Load a configuration file as needed.
-# This function is looks for changes in the configured file before processing it.
-# It is safe to call this function a lot.
-sub load_config_file {
-    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
-
-    my $path = @_ ? shift : $PREVIOUS_CONFIG_FILE;
-
-    return unless $path;
-
-    if( $path eq $PREVIOUS_CONFIG_FILE ) {
-        my $mtime = (stat $path)[9];
-        return if $CONFIG_LOAD_TIME > $mtime;
-    }
-
-    $CONFIG_LOAD_TIME = time;
-    $PREVIOUS_CONFIG_FILE = $path;
-
-    open my $fh, '<', $path
-        or do {
-            ERROR( "Error opening config file", $path, $! );
-            return;
-        };
-
-    my @lines = <$fh>;
-    chomp @lines;
-    s/#.*$// for @lines; # Remove comments
-
-    # Get rid of trailing blank lines.
-    pop @lines while @lines && $lines[-1] =~ /^\s*$/;
-
-    # Check for END token.
-    if( $lines[-1] =~ /^\s*END\s*$/ ) {
-        pop @lines;
-    }
-    else {
-        warn "No END token in configuration file.\n";
-        ERROR( "No END token in configuration file.", $path, \@lines );
-        return;
-    }
-
-    eval {
-        apply_command( @lines );
-        1;
-    }
-    or do {
-        warn "Error parsing configuration command: $@\n";
-        ERROR( message => "Error parsing configuration file.", $path, $@ );
-        return;
-    };
-
-    return;
-}
-
-
 # Non-standard import method.
 # Parse a log configuration command.
 # May also import log emitter functions if not already present.
@@ -448,6 +384,12 @@ sub import {
         my $type = ref $_;
         if( 'HASH' eq $type ) {
             $cfg = $_;
+            if ( $cfg->{config} ) {
+                Log::Lager->load_config( $cfg->{config} );
+            }
+            else {
+                Log::Lager->set_config( $cfg );
+            }
         }
         elsif( 'ARRAY' eq $type ) {
             croak "Only a single import array may be specified"
@@ -504,29 +446,33 @@ sub unimport {
 sub log_level {
     shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
 
-    my $r = Log::Lager::CommandResult->new;
-
+    my $r;
 
     # Base
-    _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $r->base );
+    $r->{base} = Log::Lager::Mask->new();
+    _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $r->{base} );
 
     # Lexical
     my $hints = (caller(0))[10];
+    $r->{lexical} = Log::Lager::Mask->new();
     _apply_bits_to_mask(
         $hints->{'Log::Lager::Log_enable'},
         $hints->{'Log::Lager::Log_disable'},
-        $r->lexical
+        $r->{lexical}
     );
 
     # Package
-    _apply_bits_to_mask( @{$PACKAGE_MASK{$_}||[0,0]}, $r->package($_) )
-        for keys %PACKAGE_MASK;
+    _apply_bits_to_mask(
+            @{$PACKAGE_MASK{$_}||[0,0]},
+            $r->{package}{$_} = Log::Lager::Mask->new()
+        ) for keys %PACKAGE_MASK;
 
     # Sub
-    _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}||[0,0]}, $r->sub($_) )
-        for keys %SUBROUTINE_MASK;
+    _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}||[0,0]}, 
+            $r->{sub}{$_} = Log::Lager::Mask->new()
+        ) for keys %SUBROUTINE_MASK;
 
-    return $r->as_string;
+    return $r;
 }
 
 
@@ -838,6 +784,29 @@ sub get_config {
     return \%cfg;
 }
 
+sub load_config {
+    &_PKGCALL;
+    my ($source) = @_;
+
+    my ($this_source, $last_source);
+    if ($source) {
+        my ($class, $opts) = %$source;
+        $class = _load_lager_class($class, 'Config');
+        my $obj = $class->new(%$opts);
+        $this_source = $obj;
+        $last_source = $CONFIG_SOURCE;
+        $CONFIG_SOURCE = $this_source;
+    }
+    else {
+        $this_source = $CONFIG_SOURCE;
+    }
+
+    return if !$this_source;
+
+    my $cfg = $this_source->load( $last_source );
+    set_config( $cfg );
+
+}
 
 
 1;

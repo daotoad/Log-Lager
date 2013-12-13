@@ -4,7 +4,7 @@ use warnings;
 
 my @useargs;
 BEGIN {
-    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 7 );
+    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 4 );
 }
 use Test::More @useargs;
 
@@ -87,10 +87,12 @@ sub exec_loglevel {
     
     my $cut = <<"END";
     package _My_::Test;
-    $level;
-    #use Log::Lager 'stack FEWTDIG';
+    use Log::Lager;
     no warnings 'redefine';
-    Log::Lager->set_config( {tap => { File => { file_name => '$path' } }} );
+    Log::Lager->set_config({
+        lexical_control => 1,
+        tap => { File => { file_name => '$path' } }
+    });
 
     log_me();
 
@@ -102,8 +104,6 @@ sub exec_loglevel {
     1;
     
 END
-
-#warn "$cut";
 
     eval $cut or do { 
         open my $fh, '>>', $path;
@@ -119,9 +119,6 @@ END
         $fh->getlines;
     };
 
-    diag @result;
-
-
     return \@result;
 }
 
@@ -129,12 +126,6 @@ sub check_results {
     my $results = shift;
     my $expect  = shift;
     my $level   = shift;
-
-    #warn "\n$level => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
-    #warn "RESULTS:\n".join("", @$results)."\n";
-    #diag " => { enabled => $expect->{enabled}, fatal => $expect->{fatal}, stack_trace => $expect->{stack_trace} }\n";
-
-    #diag $_ for @$results;
 
     subtest "Checking level $level", sub { 
 
@@ -156,7 +147,7 @@ sub check_results {
         my $json = $results->[1];
 
         # TODO parse etc.
-    };
+    } or diag Dumper $results;
 
     #diag "===================================================";
 
