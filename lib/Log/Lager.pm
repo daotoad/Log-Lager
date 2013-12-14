@@ -84,24 +84,121 @@ my @MASK_CHARS = map $_->[MASK_CHAR], @LOG_LEVELS;
 our %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
 my $MASK_REGEX = join '', keys %MASK_CHARS;
 
-# === Code Generation ===
-# Generate Log Level functions
-{   no strict 'refs';
-    for my $l ( @LOG_LEVELS ) {
-        my $func = $l->[FUNCTION];
-        my $level = $l->[MASK_CHAR];
-        *$func = sub { _handle_message( $level, @_ ); };
-    }
-}
-
 # === Initialize masks  ===
-#_parse_commands( [0,0], 'base enable', $ENV{LOGLAGER} )
-#    if defined $ENV{LOGLAGER};
 Log::Lager->set_config( $DEFAULT_CONFIG );
 
+# === Message output ===
+# Log Level functions
+sub FATAL { _handle_message( F => @_ ) }
+sub ERROR { _handle_message( E => @_ ) }
+sub WARN  { _handle_message( W => @_ ) }
+sub INFO  { _handle_message( I => @_ ) }
+sub DEBUG { _handle_message( D => @_ ) }
+sub TRACE { _handle_message( T => @_ ) }
+sub GUTS  { _handle_message( G => @_ ) }
+sub UGLY  { _handle_message( U => @_ ) }
+
+# This function provides the meat of the logic behind the log level functions.
+sub _handle_message {
+    my $level = shift;
+
+    croak "Invalid log level '$level'"
+        unless exists $MASK_CHARS{$level};
+
+    my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
+
+    # Get raw messages from either callback or @_
+    my @messages;
+    {   no warnings 'uninitialized';
+
+        if( @_ == 1
+            && reftype($_[0]) eq 'CODE'
+        ) {
+            return if !$on_bit;
+            @messages = $_[0]->();
+        }
+        else {
+            @messages = @_;
+        }
+    }
+
+    my $msg;
+    my @return_values;
+    my $return_exception;
+    # Is @messages a single entry of type Log::Lager::Message?
+    if( eval {
+        @messages == 1
+        && $messages[0]->isa('Log::Lager::Message')
+    }) {
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper \@messages );
+        }
+
+        $msg = $messages[0];
+        $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] )
+            unless $msg->loglevel;
+        $msg->expanded_format($pretty_bit)
+            unless defined $msg->expanded_format;
+
+        my $obj_want_stack = $msg->want_stack;
+        $obj_want_stack = $stack_bit
+            unless defined $obj_want_stack;
+
+        $msg->callstack( $msg->_callstack )
+            if (
+                    $obj_want_stack
+            and not $msg->callstack
+            );
+
+        my $rv = $msg->return_values;
+        @return_values = @$rv if ref($rv) eq 'ARRAY';
+        $return_exception = $msg->return_exception;
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            STDERR->printflush( "Finished processing custom message object\n" );
+            use Data::Dumper; STDERR->printflush( Dumper $msg );
+        }
 
 
-# Bitmask manipulation
+    }
+    else {
+        return if !$on_bit;
+        $msg = $MESSAGE_CLASS->new(
+            %$MESSAGE_CONFIG,
+            context         => 0,
+            loglevel        => $MASK_CHARS{$level}[FUNCTION],
+            message         => \@messages,
+            want_stack      => $stack_bit,
+            expanded_format => $pretty_bit,
+        );
+    }
+
+    if ($on_bit) {
+        my $message = $msg->format;
+
+        #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
+
+        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
+        $emitter->($level, $message);
+
+        if( $die_bit ) {
+           die "$message\n";
+        }
+
+        load_config();
+    }
+
+    die $return_exception    if defined $return_exception;
+    return                   if !defined wantarray;
+    return @return_values    if wantarray;
+    return $return_values[0] if @return_values <= 1;
+    die "Have multiple return values when wantarray is false\n";
+}
+
+
+# == Bitmask manipulation ==
 
 sub _bitmask_to_mask_string {
     my $bitmask = shift;
@@ -209,107 +306,7 @@ sub _get_bits {
 }
 
 
-# Message output
-
-# This function provides the meat of the logic behind the log level functions.
-sub _handle_message {
-    my $level = shift;
-
-    croak "Invalid log level '$level'"
-        unless exists $MASK_CHARS{$level};
-
-    my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
-
-    # Get raw messages from either callback or @_
-    my @messages;
-    {   no warnings 'uninitialized';
-
-        if( @_ == 1
-            && reftype($_[0]) eq 'CODE'
-        ) {
-            return if !$on_bit;
-            @messages = $_[0]->();
-        }
-        else {
-            @messages = @_;
-        }
-    }
-
-    my $msg;
-    my @return_values;
-    my $return_exception;
-    # Is @messages a single entry of type Log::Lager::Message?
-    if( eval {
-        @messages == 1
-        && $messages[0]->isa('Log::Lager::Message')
-    }) {
-
-        if( Log::Lager::INTERNAL_TRACE() ) {
-            STDERR->printflush( "Processing custom message object\n" );
-            use Data::Dumper; STDERR->printflush( Dumper \@messages );
-        }
-
-        $msg = $messages[0];
-        $msg->loglevel( $MASK_CHARS{$level}[FUNCTION] )
-            unless $msg->loglevel;
-        $msg->expanded_format($pretty_bit)
-            unless defined $msg->expanded_format;
-
-        my $obj_want_stack = $msg->want_stack;
-        $obj_want_stack = $stack_bit
-            unless defined $obj_want_stack;
-
-        $msg->callstack( $msg->_callstack )
-            if (
-                    $obj_want_stack
-            and not $msg->callstack
-            );
-
-        my $rv = $msg->return_values;
-        @return_values = @$rv if ref($rv) eq 'ARRAY';
-        $return_exception = $msg->return_exception;
-
-        if( Log::Lager::INTERNAL_TRACE() ) {
-            STDERR->printflush( "Finished processing custom message object\n" );
-            use Data::Dumper; STDERR->printflush( Dumper $msg );
-        }
-
-
-    }
-    else {
-        return if !$on_bit;
-        $msg = $MESSAGE_CLASS->new(
-            %$MESSAGE_CONFIG,
-            context         => 0,
-            loglevel        => $MASK_CHARS{$level}[FUNCTION],
-            message         => \@messages,
-            want_stack      => $stack_bit,
-            expanded_format => $pretty_bit,
-        );
-    }
-
-    if ($on_bit) {
-        my $message = $msg->format;
-
-        #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
-
-        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
-        $emitter->($level, $message);
-
-        if( $die_bit ) {
-           die "$message\n";
-        }
-
-        load_config();
-    }
-
-    die $return_exception    if defined $return_exception;
-    return                   if !defined wantarray;
-    return @return_values    if wantarray;
-    return $return_values[0] if @return_values <= 1;
-    die "Have multiple return values when wantarray is false\n";
-}
-
+# == Module loaders ==
 
 sub _load_lager_class {
     my ( $class, $hierarchy ) = @_;
@@ -353,6 +350,20 @@ sub _load_tap_class {
     return $class;
 }
 
+sub _load_config_class {
+    my ( $config_source ) = @_;
+
+    my ($class, $config) = %$config_source;
+
+    $class = _load_lager_class($class, 'Config');
+
+    # TODO Validate config here.
+    my $obj = $class->new(%$config);
+    
+    return $class;
+}
+
+# == == 
 
 sub _parse_log_level {
     my ($ll, $bitmask) = @_;
@@ -420,7 +431,7 @@ sub import {
         }
     }
 
-    apply_log_level( [ 'enable', @levels], 1 );
+    set_lexical_log_level( [ 'enable', @levels], 1 );
 
     return;
 }
@@ -436,7 +447,7 @@ sub unimport {
     croak "Use 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
-    apply_log_level( [ 'disable', @_], 1 );
+    set_lexical_log_level( [ 'disable', @_], 1 );
 
     return;
 }
@@ -689,7 +700,7 @@ sub OOPY {
 
 
 # take passed in log level string(s) and sets lexical level
-sub apply_log_level {
+sub set_lexical_log_level {
     &_PKGCALL;
     my ( $log_levels, $caller_level ) = 
         ref $_[0] ? ( $_[0], $_[1] )
@@ -717,6 +728,7 @@ sub apply_log_level {
 
 
 # Return current effective log level.
+# TODO let this take a level.
 sub get_log_level { # TODO move log_level 
     &_PKGCALL;
 
@@ -791,9 +803,8 @@ sub load_config {
     my ($this_source, $last_source);
     if ($source) {
         my ($class, $opts) = %$source;
-        $class = _load_lager_class($class, 'Config');
-        my $obj = $class->new(%$opts);
-        $this_source = $obj;
+        $class = _load_config_class($source);
+        $this_source = $class->new(%$opts);
         $last_source = $CONFIG_SOURCE;
         $CONFIG_SOURCE = $this_source;
     }
@@ -831,9 +842,13 @@ Log::Lager - Easy to use, flexible, parsable logs.
 
 =head1 SYNOPSIS
 
-This modules provides serveral unique features: orthogonal configuration of
-log levels, lexical log level configuration, runtime logging controls and a
-parsable log format.
+This modules provides serveral key features:
+
+* orthogonal configuration of all log levels,
+* lexical log level configuration,
+* runtime logging controls
+* JSON log entries with built in data dumping and support for self-referential data.
+
 
 The goal is to provide an easy to use logging facility that meets developer
 and production needs.
