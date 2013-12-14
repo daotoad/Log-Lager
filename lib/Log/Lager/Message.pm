@@ -98,10 +98,10 @@ sub _init {
 
     $self->{loglevel}    = $arg{loglevel};
 
-    $self->{hostname}    = $arg{hostname}   || $HOSTNAME;
-    $self->{executable}  = $arg{executable} || $0;
-    $self->{process_id}  = $arg{process_id} || $$;
-    $self->{thread_id}   = $arg{thread_id}  || _thread_id();
+    $self->{hostname}    = $arg{hostname}     || $HOSTNAME;
+    $self->{executable}  = $arg{executable}   || $0;
+    $self->{process_id}  = 0+$arg{process_id} || 0+$$;
+    $self->{thread_id}   = 0+$arg{thread_id}    || 0+_thread_id();
 
     $self->{timestamp}   = $self->_to_timestamp($arg{timestamp}  || () );
 
