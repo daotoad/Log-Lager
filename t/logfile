@@ -1,0 +1,34 @@
+BEGIN MESSAGE
+[
+   [
+      "2014-03-27T23:13:10.061Z",
+      "GUTS",
+      "timezones.local",
+      22353,
+      0,
+      "t/03-lexical_loglevels.t",
+      "(eval 140)",
+      13,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message"
+]
+Exception thrown - [
+   [
+      "2014-03-27T23:13:10.061Z",
+      "GUTS",
+      "timezones.local",
+      22353,
+      0,
+      "t/03-lexical_loglevels.t",
+      "(eval 140)",
+      13,
+      "_My_::Test",
+      "_My_::Test::log_me"
+   ],
+   "Message"
+]
+
+
+END MESSAGE

@@ -10,6 +10,8 @@ use Test::More @useargs;
 
 use File::Temp;
 use JSON;
+use Data::Dumper;
+
 sub Log::Lager::INTERNAL_TRACE() {1};
 
 BEGIN { package _My_::Test; use Log::Lager; }
@@ -131,7 +133,7 @@ sub check_results {
 
         my $cmp = ! $expect->{enabled}   ? '<'
                 : $expect->{stack_trace} ? '>'
-                :                          '=';
+                :                          '==';
         cmp_ok( scalar @$results, $cmp, 3, 'Emitted line count as configured.' );
         
         my @except = grep /Exception thrown/,  @$results;

@@ -18,7 +18,7 @@ Before 1.0
     DONE
     - Configuration clean up.
     - Unify and remove configuration cruft.
-
+    DONE
 After 1.0 - i
   THEME: More injections.
     - Provide a Log::Lager object for use with packages that want to consume a log object.  Probably using Log::Any as an adapter.
@@ -30,6 +30,7 @@ Split configuration---
         enable disable stack nostack fatal nonfatal pretty compact
     2. Other things do not.
         stderr file nolex syslog base package sub message
+DONE
 
 Methods --
    add: get/set_base_level
@@ -60,4 +61,5 @@ Config Format --
     },
 
 }
+DONE
 

@@ -176,16 +176,9 @@ sub _handle_message {
     }
 
     if ($on_bit) {
-        my $message = $msg->format;
+        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : Log::Lager::Tap::STDERR->new()->gen_output_function();
 
-        #$message = $stack_bit ? Carp::longmess( $message ) : "$message";
-
-        my $emitter = $OUTPUT_FUNCTION ? $OUTPUT_FUNCTION : \&_output_stderr;
-        $emitter->($level, $message);
-
-        if( $die_bit ) {
-           die "$message\n";
-        }
+        $emitter->($level, $die_bit, $msg);
 
         load_config();
     }

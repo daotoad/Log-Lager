@@ -40,7 +40,7 @@ my %WriteMakefileArgs = (
     'constant' => '0',
     'overload' => '0'
   },
-  'VERSION' => '0.04.08',
+  'VERSION' => '0.04.09',
   'test' => {
     'TESTS' => join ' ',
         qw{ t/*.t 

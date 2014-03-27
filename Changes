@@ -12,4 +12,13 @@ Initial "de-workified" release.
 0.04.07: 2011-11-03
 "file" output now supports common log-rolling behaviors.
 
+0.99: Upcoming
+Completely revamped and refactored.
+ * New public API
+ * Pluggable modules for
+   - Output (e.g. STDERR, Syslog, File)
+   - Configuration management 
+   - Message format
+ * More tests
+ * New docs
 

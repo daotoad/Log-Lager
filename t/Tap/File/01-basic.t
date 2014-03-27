@@ -98,7 +98,9 @@ subtest 'Verify logging behaviors' => sub {
     my $any_good_path = 'test-log-file.06';
     my $any_level = 'F';
     my $any_message = "This is a message.\n";
+    my $any_mobj = Log::Lager::Message->new( message => $any_message );
     my $any_other_message = "This, too, is a message.\n";
+    my $any_omobj = Log::Lager::Message->new( message => $any_other_message );
 
     if( -e $any_good_path ) {
         unlink $any_good_path
@@ -114,7 +116,7 @@ subtest 'Verify logging behaviors' => sub {
     $obj->select();
     ok( -e $any_good_path, "Log file created" );
 
-    $out->($any_level, $any_message);
+    $out->($any_level, 0, $any_mobj);
 
     ok( file_has_message( $any_good_path, $any_message ),
         "Log file has message text"
@@ -123,7 +125,8 @@ subtest 'Verify logging behaviors' => sub {
     unlink $any_good_path
         or die "Error deleting file - $any_good_path\n";
     
-    $out->($any_level, $any_message);
+    $out->($any_level, 0, $any_mobj);
+
 
     ok( -e $any_good_path, "New log file created on check" );
 
@@ -131,7 +134,7 @@ subtest 'Verify logging behaviors' => sub {
         "New log file created on check time got message text"
     );
 
-    $out->($any_level, $any_other_message);
+    $out->($any_level, 0, $any_omobj);
 
     ok( file_has_message( $any_good_path, $any_other_message ),
         "New log file created on check time got message text"
