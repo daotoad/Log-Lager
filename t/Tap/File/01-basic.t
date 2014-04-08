@@ -6,6 +6,7 @@ use warnings;
 use Test::More;
 
 use Log::Lager::Tap::File;
+use Log::Lager::Message;
 
 my $pkg = 'Log::Lager::Tap::File';
 
@@ -77,7 +78,7 @@ subtest 'Verify dump_config' => sub {
 
     {   my $desc = "Call dump config works as an instance method";
         my $name = 'foo';
-        my $perms => '0775';
+        my $perms = '0775';
 
         my @cfg = $pkg->new( file_name => $name, permissions => $perms )
                       ->dump_config();
@@ -98,50 +99,54 @@ subtest 'Verify logging behaviors' => sub {
     my $any_good_path = 'test-log-file.06';
     my $any_level = 'F';
     my $any_message = "This is a message.\n";
-    my $any_mobj = Log::Lager::Message->new( message => $any_message );
-    my $any_other_message = "This, too, is a message.\n";
-    my $any_omobj = Log::Lager::Message->new( message => $any_other_message );
+    eval {
+        my $any_mobj = Log::Lager::Message->new( message => $any_message );
+        my $any_other_message = "This, too, is a message.\n";
+        my $any_omobj = Log::Lager::Message->new( message => $any_other_message );
 
-    if( -e $any_good_path ) {
-        unlink $any_good_path
-            or die "Error deleting file - $any_good_path\n";
-    }
+    $DB::single=1;
+        if( -e $any_good_path ) {
+            unlink $any_good_path
+                or die "Error deleting file - $any_good_path - $!";
+        }
 
-    my $obj = Log::Lager::Tap::File->new(
-            file_name => $any_good_path,
+        my $obj = Log::Lager::Tap::File->new(
+                file_name => $any_good_path,
+            );
+
+        my $out = $obj->gen_output_function();
+
+        $obj->select();
+        ok( -e $any_good_path, "Log file created" );
+
+        $out->($any_level, 0, $any_mobj);
+
+        ok( file_has_message( $any_good_path, $any_message ),
+            "Log file has message text"
         );
 
-    my $out = $obj->gen_output_function();
-
-    $obj->select();
-    ok( -e $any_good_path, "Log file created" );
-
-    $out->($any_level, 0, $any_mobj);
-
-    ok( file_has_message( $any_good_path, $any_message ),
-        "Log file has message text"
-    );
-
-    unlink $any_good_path
-        or die "Error deleting file - $any_good_path\n";
-    
-    $out->($any_level, 0, $any_mobj);
+        unlink $any_good_path
+            or die "Error deleting file - $any_good_path - $!";
+        
+        $out->($any_level, 0, $any_mobj);
 
 
-    ok( -e $any_good_path, "New log file created on check" );
+        ok( -e $any_good_path, "New log file created on check" );
 
-    ok( file_has_message( $any_good_path, $any_message ),
-        "New log file created on check time got message text"
-    );
+        ok( file_has_message( $any_good_path, $any_message ),
+            "New log file created on check time got message text"
+        );
 
-    $out->($any_level, 0, $any_omobj);
+        $out->($any_level, 0, $any_omobj);
 
-    ok( file_has_message( $any_good_path, $any_other_message ),
-        "New log file created on check time got message text"
-    );
+        ok( file_has_message( $any_good_path, $any_other_message ),
+            "New log file created on check time got message text"
+        );
+        1;
+    } or die $@;
 
     unlink $any_good_path
-        or die "Error deleting file - $any_good_path\n";
+        or die "Error deleting file - $any_good_path - $!";
 };
 
 done_testing();

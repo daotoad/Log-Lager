@@ -121,6 +121,9 @@ END
         $fh->getlines;
     };
 
+
+    unlink $path or die "Error deleting file '$path' - $!\n";
+
     return \@result;
 }
 
