@@ -6,7 +6,7 @@ use warnings;
 use Carp qw( croak );
 $Carp::Internal{__PACKAGE__}++;
 
-use JSON;
+use JSON::XS;
 use constant STAT_INODE => 1;
 
 use constant {
@@ -90,7 +90,7 @@ sub load {
         return;
     }
 
-    my $json = JSON->new()->utf8->relaxed();
+    my $json = JSON::XS->new()->utf8->relaxed();
 
     my $config = $json->decode( join '', @lines );
 

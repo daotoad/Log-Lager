@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 27;
+use Test::More tests => 26;
+use Log::Lager;
 
-use_ok( 'Log::Lager' ) or BAIL_OUT('Module under test failed to load');
 
 
 my @LOG_LEVELS = (

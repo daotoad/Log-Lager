@@ -7,6 +7,7 @@ use Config qw( %Config );
 use Hash::Util qw<lock_hash unlock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
+use JSON::XS;
 
 
 use constant _RO_ATTR => qw(
@@ -112,6 +113,14 @@ sub _init {
     $self->{want_stack} = defined $arg{want_stack}
                         ? $arg{want_stack}
                         : $self->{want_stack};
+
+    $self->{return_exception} = defined $arg{return_exception}
+                        ? $arg{return_exception}
+                        : $self->{return_exception};
+
+    $self->{return_values} = defined $arg{return_values}
+                        ? $arg{return_values}
+                        : $self->{return_values};
 
     if( defined $arg{context} ) {
         my $offset = $self->_adjust_call_stack_level($arg{context});

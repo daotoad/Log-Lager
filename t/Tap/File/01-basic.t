@@ -98,11 +98,11 @@ subtest 'Verify logging behaviors' => sub {
     local $Log::Lager::Tap::File::DEFAULT_CHECK_FREQUENCY = 0;
     my $any_good_path = 'test-log-file.06';
     my $any_level = 'F';
-    my $any_message = "This is a message.\n";
+    my $any_message = [ "This is a message." ];
     eval {
-        my $any_mobj = Log::Lager::Message->new( message => $any_message );
-        my $any_other_message = "This, too, is a message.\n";
-        my $any_omobj = Log::Lager::Message->new( message => $any_other_message );
+        my $any_mobj = Log::Lager::Message->new( message => $any_message, context => 0 );
+        my $any_other_message = [ "This, too, is a message." ];
+        my $any_omobj = Log::Lager::Message->new( message => $any_other_message, context => 0 );
 
     $DB::single=1;
         if( -e $any_good_path ) {
@@ -121,7 +121,7 @@ subtest 'Verify logging behaviors' => sub {
 
         $out->($any_level, 0, $any_mobj);
 
-        ok( file_has_message( $any_good_path, $any_message ),
+        ok( file_has_message( $any_good_path, $any_message->[0] ),
             "Log file has message text"
         );
 
@@ -133,13 +133,13 @@ subtest 'Verify logging behaviors' => sub {
 
         ok( -e $any_good_path, "New log file created on check" );
 
-        ok( file_has_message( $any_good_path, $any_message ),
+        ok( file_has_message( $any_good_path, $any_message->[0] ),
             "New log file created on check time got message text"
         );
 
         $out->($any_level, 0, $any_omobj);
 
-        ok( file_has_message( $any_good_path, $any_other_message ),
+        ok( file_has_message( $any_good_path, $any_other_message->[0] ),
             "New log file created on check time got message text"
         );
         1;
