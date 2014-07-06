@@ -102,7 +102,7 @@ sub will_log {
     croak "Requires a log level indicator" unless defined $level;
     $level = substr $level, 0, 1;
 
-    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U
+    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U"
         unless exists $MASK_CHARS{$level}[BITFLAG];
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit)
@@ -455,7 +455,7 @@ sub import {
         }
     }
 
-    set_lexical_log_level( [ 'enable', @levels], 1 );
+    Log::Lager->set_lexical_log_level( [ 'enable', @levels], 1 );
 
     return;
 }
@@ -471,7 +471,7 @@ sub unimport {
     croak "Use 'Log::Lager' with log level codes only"
         if grep /[^$MASK_REGEX]/, @commands;
 
-    set_lexical_log_level( [ 'disable', @_], 1 );
+    Log::Lager->set_lexical_log_level( [ 'disable', @_], 1 );
 
     return;
 }
@@ -621,10 +621,6 @@ sub _configure {
     return;
 }
 
-sub _PKGCALL {
-    shift if @_ && eval{ $_[0]->isa( __PACKAGE__ ) };
-}
-
 # Experimental idea
 #   translate object attributes to localized globals on the fly.
 #   allows multiple objects with different settings
@@ -687,10 +683,7 @@ sub _PKGCALL {
 
 # take passed in log level string(s) and sets lexical level
 sub set_lexical_log_level {
-    &_PKGCALL;
-    my ( $log_levels, $caller_level ) =
-        ref $_[0] ? ( $_[0], $_[1] )
-                  : ( [@_] );
+    my ( $class, $log_levels, $caller_level ) = @_;
 
     $DB::single=1;
     return unless @$log_levels;
@@ -715,8 +708,6 @@ sub set_lexical_log_level {
 
 # Return current effective log level as a string.
 sub effective_log_level { # TODO move log_level
-    &_PKGCALL;
-
     my $mask = Log::Lager::Mask->new();
     # Base
     _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $mask );
@@ -792,14 +783,11 @@ sub get_log_levels {
 
 
 sub set_config {
-    &_PKGCALL;
-    my ($cfg) = @_;
+    my ($class, $cfg) = @_;
     _configure( %$DEFAULT_CONFIG, %$cfg );
     return;
 }
 sub get_config {
-    &_PKGCALL;
-
     my %cfg = (
         lexical_control => 0,
         tap     => {},
@@ -835,8 +823,7 @@ sub get_config {
 }
 
 sub load_config {
-    &_PKGCALL;
-    my ($source) = @_;
+    my ($class, $source) = @_;
 
     my ($this_source, $last_source);
     if ($source) {
@@ -860,7 +847,7 @@ sub load_config {
 
 sub _not_set_or_matches {
     my ($string, $condition, ) = @_;
-    return defined $string
+    return defined $condition
         ? _matches($string, $condition)
         : 1;
 }

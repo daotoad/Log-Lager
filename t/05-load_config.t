@@ -10,7 +10,7 @@ use_ok( 'Log::Lager' ) or BAIL_OUT( "Module under test failed to load." );
 use Log::Lager 'FEWIDTGU';
 
 {  # Default conditions.
-    my $log_level =  Log::Lager::log_level();
+    my $log_level =  Log::Lager->get_log_levels();
     SKIP: {
         skip "Ancient Perl's lexicality is limited.", 1 if $] < 5.009;
         like( $log_level->{lexical}, qr/enable FEWIDTGU/,  'Lexical settings correct'      );
@@ -35,8 +35,8 @@ CFG
 
 {   #Config from file
 
-    Log::Lager::load_config({ File => { file_name => $cfg_name}});
-    my $log_level =  Log::Lager::log_level();
+    Log::Lager->load_config({ File => { file_name => $cfg_name}});
+    my $log_level =  Log::Lager->get_log_levels();
     like( $log_level->{base}, qr/enable FEWI disable DTGU/, 'Base settings updated' );
 }
 
@@ -56,8 +56,8 @@ CFG
 
 {   #Config from file
 
-    Log::Lager::load_config();
-    my $log_level =  Log::Lager::log_level();
+    Log::Lager->load_config();
+    my $log_level =  Log::Lager->get_log_levels();
     like( $log_level->{base}, qr/enable FEWID disable TGU/, 'Base settings enable updated' );
     like( $log_level->{base}, qr/fatal FEWU nonfatal IDTG/, 'Base settings fatal updated'  );
 
