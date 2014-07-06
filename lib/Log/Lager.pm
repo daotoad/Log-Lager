@@ -97,6 +97,22 @@ sub TRACE { _handle_message( T => @_ ) }
 sub GUTS  { _handle_message( G => @_ ) }
 sub UGLY  { _handle_message( U => @_ ) }
 
+sub will_log { 
+    my ($class, $level) = @_;
+    croak "Requires a log level indicator" unless defined $level;
+    $level = substr $level, 0, 1;
+
+    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U "
+        unless exists $MASK_CHARS{$level}[BITFLAG];
+
+    my ($on_bit, $die_bit, $pretty_bit, $stack_bit)
+        =_get_bits(1, $MASK_CHARS{$level}[BITFLAG]);
+
+    return wantarray
+        ? ($on_bit, $die_bit, $pretty_bit, $stack_bit )
+        : $on_bit;
+}
+
 # This function provides the meat of the logic behind the log level functions.
 # If message is:
 #    a code ref
