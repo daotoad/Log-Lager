@@ -34,7 +34,7 @@ our $TAP_OBJECT;         # Output tap object instance
 
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
-our $CONFIG_LOAD_TIME     = 0;
+our $CONFIG_LOAD_TIME = 0;
 our $MESSAGE_CLASS;
 our $MESSAGE_CONFIG = {};
 
@@ -108,8 +108,13 @@ sub UGLY  { _handle_message( U => @_ ) }
 #       Treat as below.
 #    a message object
 #
+my $_recursion_counter;
 sub _handle_message {
     my $level = shift;
+    $_recursion_counter++;
+
+    croak "Errors in message handling caused recursion"
+        if $_recursion_counter > 3;
 
     croak "Invalid log level '$level'"
         unless exists $MASK_CHARS{$level};
@@ -134,6 +139,7 @@ sub _handle_message {
     my $msg;
     my @return_values;
     my $return_exception;
+
     # Is @messages a single entry of type Log::Lager::Message?
     if( eval {
         @messages == 1
@@ -170,7 +176,6 @@ sub _handle_message {
             use Data::Dumper; STDERR->printflush( Dumper $msg );
         }
 
-
     }
     elsif( $on_bit ) {
         $msg = $MESSAGE_CLASS->new(
@@ -190,6 +195,8 @@ sub _handle_message {
 
         Log::Lager->load_config();
     }
+
+    $_recursion_counter--;
 
     die $return_exception    if defined $return_exception;
     return                   if !defined wantarray;
