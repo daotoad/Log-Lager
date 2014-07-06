@@ -28,9 +28,9 @@ our %SUBROUTINE_MASK;    # Storage for sub specific masks
 our $CONFIG_SOURCE;
 # Non-mask variables that store current configuration information
 our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
-our $TAP_CLASS;          # Output tap 
-our $TAP_CONFIG;         # Output tap configuration 
-our $TAP_OBJECT;         # Output tap object instance 
+our $TAP_CLASS;          # Output tap
+our $TAP_CONFIG;         # Output tap configuration
+our $TAP_OBJECT;         # Output tap object instance
 
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
@@ -97,12 +97,12 @@ sub TRACE { _handle_message( T => @_ ) }
 sub GUTS  { _handle_message( G => @_ ) }
 sub UGLY  { _handle_message( U => @_ ) }
 
-sub will_log { 
+sub will_log {
     my ($class, $level) = @_;
     croak "Requires a log level indicator" unless defined $level;
     $level = substr $level, 0, 1;
 
-    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U "
+    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U
         unless exists $MASK_CHARS{$level}[BITFLAG];
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit)
@@ -357,7 +357,7 @@ sub _load_message_class {
     $class = _load_lager_class($class, 'Message');
 
     # TODO Validate config here.
-    
+
     return $class;
 }
 
@@ -370,7 +370,7 @@ sub _load_tap_class {
 
     # TODO Validate config here.
     my $obj = $class->new(%$config);
-    
+
     return $class;
 }
 
@@ -383,11 +383,11 @@ sub _load_config_class {
 
     # TODO Validate config here.
     my $obj = $class->new(%$config);
-    
+
     return $class;
 }
 
-# == == 
+# == ==
 
 sub _parse_log_level {
     my ($ll, $bitmask) = @_;
@@ -395,7 +395,7 @@ sub _parse_log_level {
     my $levels = "[$MASK_REGEX]*";
 
     $ll = join ' ', @$ll if ref $ll;
-    
+
     $ll =~ /^\s*(|($group)(\s+$levels)*)(\s+($group)(\s+$levels)*)*\s*$/
         or croak "Invalid log level: $ll";
 
@@ -590,8 +590,8 @@ sub _configure {
             for keys %{$config{levels}{sub}};
         Log::Lager->configure_package_log_level( $_, $config{levels}{package}{$_} )
             for keys %{$config{levels}{package}};
-        Log::Lager->configure_default_message( %{$config{message} } ); 
-        Log::Lager->configure_tap( %{$config{tap} } ); 
+        Log::Lager->configure_default_message( %{$config{message} } );
+        Log::Lager->configure_tap( %{$config{tap} } );
 
         $cfg{lex}         = $ENABLE_LEXICAL;
         $cfg{base}        = $BASE_MASK;
@@ -688,14 +688,14 @@ sub _PKGCALL {
 # take passed in log level string(s) and sets lexical level
 sub set_lexical_log_level {
     &_PKGCALL;
-    my ( $log_levels, $caller_level ) = 
+    my ( $log_levels, $caller_level ) =
         ref $_[0] ? ( $_[0], $_[1] )
                   : ( [@_] );
 
     $DB::single=1;
     return unless @$log_levels;
 
-    $caller_level += 1;   
+    $caller_level += 1;
 
     my $hints = (caller($caller_level))[10];
 
@@ -714,7 +714,7 @@ sub set_lexical_log_level {
 
 
 # Return current effective log level as a string.
-sub effective_log_level { # TODO move log_level 
+sub effective_log_level { # TODO move log_level
     &_PKGCALL;
 
     my $mask = Log::Lager::Mask->new();
@@ -774,14 +774,13 @@ sub get_log_levels {
             $r->{package}{$pkg} = "$r->{package}{$pkg}";
         }
     }
-    
 
     # Sub
     if ( _not_set_or_matches(sub => $set) ) {
         for my $sub (
              grep _not_set_or_matches($name => $_), keys %SUBROUTINE_MASK
          ) {
-            _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}||[0,0]}, 
+            _apply_bits_to_mask( @{$SUBROUTINE_MASK{$_}||[0,0]},
                 $r->{sub}{$_} = Log::Lager::Mask->new()
             );
             $r->{sub}{$_} = "$r->{sub}{$_}";
@@ -861,7 +860,7 @@ sub load_config {
 
 sub _not_set_or_matches {
     my ($string, $condition, ) = @_;
-    return defined $string 
+    return defined $string
         ? _matches($string, $condition)
         : 1;
 }
@@ -870,9 +869,9 @@ sub _matches {
     my ($string, $condition) = @_;
 
     my $type = ref($condition) // '';
-    
+
     return ref qr// eq $type
-        ? $string =~ /$condition/ 
+        ? $string =~ /$condition/
         : $string eq $condition;
 }
 
