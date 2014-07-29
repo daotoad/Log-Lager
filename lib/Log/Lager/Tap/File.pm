@@ -118,8 +118,6 @@ sub gen_output_function {
             }
         }
 
-
-
         my $fh = $self->[HANDLE] || \*STDERR;
 
         my $msg = $message->format() || '';
