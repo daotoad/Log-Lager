@@ -3,11 +3,13 @@ use strict;
 use warnings;
 use Carp qw<croak>;
 use Config qw( %Config );
+use Log::Lager::Util;
+use Log::Lager::Component;
 
 use Hash::Util qw<lock_hash unlock_hash>;
 use Data::Abridge qw<abridge_items_recursive>;
 use Time::HiRes 'time';
-use JSON::XS;
+use JSON qw<>;
 
 
 use constant _RO_ATTR => qw(
@@ -43,6 +45,7 @@ use constant {
     HINTS       => 8,
     BIT_MASK    => 9,
     HINT_HASH   => 10,
+    CONTEXT_SUB => 11,
 };
 
 use Sys::Hostname ();
@@ -123,14 +126,14 @@ sub _init {
                         : $self->{return_values};
 
     if( defined $arg{context} ) {
-        my $offset = $self->_adjust_call_stack_level($arg{context});
+        my $context = $arg{context};
 
         $self->{callstack}
             = defined $arg{callstack}  ? $arg{callstack}
-            : $self->{want_stack}      ? $self->_callstack($offset)
+            : $self->{want_stack}      ? $self->_callstack($context)
             :                            undef;
 
-        my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $offset );
+        my ($file, $line, $pkg, $sub) = $self->_fetch_caller_info( $context );
 
         $self->{subroutine}  = defined $arg{subroutine}
                              ? $arg{subroutine}
@@ -169,8 +172,9 @@ sub _adjust_call_stack_level {
     my $level = shift;
 
     my $offset = 0;
-    $offset++ while caller($offset)->isa('Log::Lager::Message');
-    $offset++ while caller($offset) eq ('Log::Lager');
+    $offset++ while Log::Lager::Util->caller($offset)->isa('Log::Lager::Capture');
+    $offset++ while Log::Lager::Util->caller($offset)->isa('Log::Lager::Message');
+    $offset++ while Log::Lager::Util->caller($offset) eq ('Log::Lager');
 
     return $level + $offset;
 }
@@ -199,7 +203,7 @@ sub _callstack {
         my @env;
         my @args;
         {   package DB;
-            @env  = caller($level);
+            @env  = Log::Lager::Util->caller($level);
             @args = @DB::args if $env[ Log::Lager::Message::HAS_ARGS ];
         }
         last unless defined $env[0];
@@ -226,10 +230,9 @@ sub _fetch_caller_info {
     my $self  = shift;
     my $level = shift;
 
-    my @info = caller($level);
-    my ($file, $line, $pkg) = @info[FILE_NAME, LINE_NO, PACKAGE];
-    @info = caller($level+1);
-    my $sub = $info[SUBROUTINE];
+    my @info = Log::Lager::Util->caller($level);
+    my ( $file, $line, $pkg, $sub ) =
+        @info[FILE_NAME, LINE_NO, PACKAGE, CONTEXT_SUB];
 
     return ( $file, $line, $pkg, $sub );
 }
@@ -244,13 +247,13 @@ sub _thread_id {
 
 
 
-# Create and access some JSON::XS objects for the formatters.
+# Create and access some JSON objects for the formatters.
 {   my $json;
 
     sub _get_compact_json {
-        # Sadly, there isn't a good way to tell this to put on just a trailing newline.
+        # Sadly, there in't a good way to tell this to put on just a trailing newline.
         unless( $json ) {
-            $json = JSON::XS->new()
+            $json = JSON->new()
                 or die "Can't create JSON processor";
             $json->ascii(1)->indent(0)->space_after(1)->relaxed(0)->canonical(1);
         }
@@ -260,7 +263,7 @@ sub _thread_id {
 {   my $json;
     sub _get_expanded_json {
         unless( $json ) {
-            $json = JSON::XS->new()
+            $json = JSON->new()
                 or die "Can't create JSON processor";
             $json->indent(2)->space_after(1)->relaxed(0)->canonical(1);
         }
@@ -349,7 +352,7 @@ Log::Lager::Message
 =head1 DESCRIPTION
 
 
-
+TODO - Add notes on subclassing Message.
 
 
 

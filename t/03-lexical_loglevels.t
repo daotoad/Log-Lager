@@ -4,7 +4,7 @@ use warnings;
 
 my @useargs;
 BEGIN {
-    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 4 );
+    @useargs = $] < 5.009 ? ( skip_all => "Ancient Perl doesn't do lexical logging" ) : ( tests => 3 );
 }
 use Test::More @useargs;
 
@@ -14,7 +14,7 @@ use Data::Dumper;
 
 sub Log::Lager::INTERNAL_TRACE() {1};
 
-BEGIN { package _My_::Test; use Log::Lager; }
+BEGIN { package _My_::Test; use Log::Lager; use Data::Dumper; }
 
 my @TEST_SPECS  = (
     [ 'use Log::Lager "FEWTDIG nonfatal FEWTDIG nostack FEWTDIG"' => [
@@ -53,9 +53,7 @@ my @TEST_SPECS  = (
 
 
 
-require_ok( 'Log::Lager' ) 
-    or BAIL_OUT('Error loading Log::Lager');
-
+require Log::Lager;
 
 run_test_group();
 
@@ -158,7 +156,3 @@ sub check_results {
 
 }
 
-BEGIN {
-    package BOOGER;
-    use base 'Log::Lager::Message';
-}

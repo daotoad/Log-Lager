@@ -2,6 +2,11 @@ Before 1.0
   THEME: Make it work
     - Complete a reasonable amount of unit tests.
         IN PROGRESS
+        Tests - send a message object with defined loglevel and other attributes.
+        Verify calling sub in array and scalar contacts
+        Test controlling output for sub and packages
+        Test bad configurations where class loading fails.
+        Test bad config with invalid log levels.
     - Update POD in modules
     - Message objects must be able to indicate a desire to have bits set by event handler.
     - Code changes only as needed.
@@ -22,8 +27,10 @@ Before 1.0
 After 1.0 - i
   THEME: More injections.
     - Provide a Log::Lager object for use with packages that want to consume a log object.  Probably using Log::Any as an adapter.
-    - Allow Messages to take objects for use as Formatters and Emitters.
-    - Allow Lager to provide default Formatter and Emitter objects.
+    - Allow Messages to take callbacks? or objects for use as custom Formatters
+    - Allow Messages to take callbacks? or objects for use as custom Emitters - DONE see Tap objects.
+    - Allow Lager to provide default Formatter objects.
+    - Allow Lager to provide default Emitter objects.  - DONE See Tap objects
 
 Split configuration---
     1. Some items belong in lexical config
@@ -31,6 +38,10 @@ Split configuration---
     2. Other things do not.
         stderr file nolex syslog base package sub message
 DONE
+
+capture - 
+    Provide interface for capturing data from handles and logging it.
+    STDERR and other handle like things.
 
 Methods --
    add: get/set_base_level
@@ -59,7 +70,11 @@ Config Format --
     tap => {
         Log::Lager::Tap::File => { file_name => 'foo' },
     },
+    capture [
+        {
+        STDERR => { log_level => 'ERROR' },
+        Handle => {},
+    }
 
 }
-DONE
 

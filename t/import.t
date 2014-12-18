@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 use Digest::MD5 'md5_hex';
 
-use Data::Dumper;
 
 
 log_function_import_ok( 
@@ -56,10 +55,11 @@ sub log_function_import_ok {
 
     subtest $name => sub {
         my $died;
-        eval qq{
+        my $code = qq{
             package $package;
             use Log::Lager $command;
-        } or do {
+        };
+        eval $code or do {
             $died = $@;
         };
 
@@ -69,6 +69,7 @@ sub log_function_import_ok {
         }
         elsif ( $died ) {
             fail( 'Unexpected exception' );
+            diag $code;
             diag $died;
         }
 
@@ -77,7 +78,7 @@ sub log_function_import_ok {
             my @functions = sort grep $package->can($_), keys %{"${package}::"};
             my @expected = sort @$expected;
 
-            is_deeply( \@functions, \@expected, $name );
+            is_deeply( \@functions, \@expected, $name ) or diag( "Got: @functions Expected: @expected");
         }
 
     };

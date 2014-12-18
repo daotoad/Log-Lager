@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+#BEGIN { sub Log::Lager::INTERNAL_TRACE () {1}; }
+use Log::Lager 'enable FEWTIDUG',
+    [ 'FATAL', 'TRACE', 'INFO', 'DEBUG', [ERROR=>'BUSTED']],
+    { config => { File => { file_name => 'example/testconfig.json' }} };
+    ;
+
+TRACE 'script start';
+
+my $cfg = parse_argv( [@ARGV] );
+
+DEBUG "Configuration", $cfg;
+
+BUSTED "What you gonna do?";
+
+
+{   no Log::Lager 'T';
+    # Precalculate and store logging decisions
+    # to optimize hot code paths.
+    my $will_trace = Log::Lager->will_log('T');
+    for (1..1000) {
+        TRACE "Loop cycle", $_ if $will_trace;
+    }
+}
+
+
+sub parse_argv {
+    my ($arg) = @_;
+
+    use Log::Lager 'enable TI stack I pretty I';
+    warn "I am the cheese";
+
+    TRACE 'parsing arguments', $arg;
+
+    INFO 'using defaults - no args given' unless @$arg;
+
+    return {};    
+}
+

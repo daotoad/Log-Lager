@@ -6,17 +6,20 @@ use strict;
 use warnings;
 use Carp qw( croak );
 $Carp::Internal{'Log::Lager'}++;
-use Scalar::Util qw(reftype);
-use JSON::XS;
+use Scalar::Util qw(weaken blessed reftype);
 use IO::Handle;
 
+use Log::Lager::Util;
 use Log::Lager::Mask;
 use Log::Lager::Message;
 use Log::Lager::Tap::STDERR;
+use Log::Lager::Component;
 
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
 
+our $STDERR = \*STDOUT;
+#our $STDERR = \*STDERR;
 # Global configuration
 # === Global mask variables ===
 # These global masks are controlled as a side effect of _parse_commands();
@@ -27,16 +30,17 @@ our %SUBROUTINE_MASK;    # Storage for sub specific masks
 # === Global config ===
 our $CONFIG_SOURCE;
 # Non-mask variables that store current configuration information
-our $ENABLE_LEXICAL;     # Boolean flag for lexical controls
-our $TAP_CLASS;          # Output tap
-our $TAP_CONFIG;         # Output tap configuration
+our $ENABLE_LEXICAL = 0;     # Boolean flag for lexical controls
+our $TAP_CLASS      = 'Log::Lager::Tap::STDERR';          # Output tap
+our $TAP_CONFIG     = {};         # Output tap configuration
 our $TAP_OBJECT;         # Output tap object instance
 
 our $OUTPUT_FUNCTION;    # Code ref of emitter function.
 
 our $CONFIG_LOAD_TIME = 0;
-our $MESSAGE_CLASS;
+our $MESSAGE_CLASS = 'Log::Lager::Message';
 our $MESSAGE_CONFIG = {};
+our @ACTIVE_CAPTURES;
 
 our $DEFAULT_CONFIG = {
     lexical_control => 1,
@@ -50,6 +54,11 @@ our $DEFAULT_CONFIG = {
     },
     message => { 'Log::Lager::Message' => {} },
     tap     => { STDERR => {} },
+    capture => [],
+    ( $ENV{LOG_LAGER_CONFIG} 
+        ? %{ Log::Lager::Util->unpack_json_config($ENV{LOG_LAGER_CONFIG}) }
+        : ()
+    ),
 };
 
 # === Configure Log Levels ===
@@ -88,14 +97,14 @@ Log::Lager->set_config( $DEFAULT_CONFIG );
 
 # === Message output ===
 # Log Level functions
-sub FATAL { _handle_message( F => @_ ) }
-sub ERROR { _handle_message( E => @_ ) }
-sub WARN  { _handle_message( W => @_ ) }
-sub INFO  { _handle_message( I => @_ ) }
-sub DEBUG { _handle_message( D => @_ ) }
-sub TRACE { _handle_message( T => @_ ) }
-sub GUTS  { _handle_message( G => @_ ) }
-sub UGLY  { _handle_message( U => @_ ) }
+sub FATAL { _handle_message( 'F', 0 => @_ ) }
+sub ERROR { _handle_message( 'E', 0 => @_ ) }
+sub WARN  { _handle_message( 'W', 0 => @_ ) }
+sub INFO  { _handle_message( 'I', 0 => @_ ) }
+sub DEBUG { _handle_message( 'D', 0 => @_ ) }
+sub TRACE { _handle_message( 'T', 0 => @_ ) }
+sub GUTS  { _handle_message( 'G', 0 => @_ ) }
+sub UGLY  { _handle_message( 'U', 0 => @_ ) }
 
 sub will_log {
     my ($class, $level) = @_;
@@ -106,12 +115,32 @@ sub will_log {
         unless exists $MASK_CHARS{$level}[BITFLAG];
 
     my ($on_bit, $die_bit, $pretty_bit, $stack_bit)
-        =_get_bits(1, $MASK_CHARS{$level}[BITFLAG]);
+        =_get_bits(0, $MASK_CHARS{$level}[BITFLAG]);
 
     return wantarray
         ? ($on_bit, $die_bit, $pretty_bit, $stack_bit )
         : $on_bit;
 }
+
+sub log_from_context {
+    my $class = shift;
+    my $level = shift;
+    my $context = shift;
+
+    croak "Requires a log level indicator" unless defined $level;
+    $level = substr $level, 0, 1;
+
+    croak "Illegal level indicator '$level' - Must be one of F E W I D T G U"
+        unless exists $MASK_CHARS{$level}[BITFLAG];
+
+    croak "Requires a context indicator"
+        unless defined $context;
+
+    $context++;
+
+    _handle_message( $level, $context, @_ );
+}
+
 
 # This function provides the meat of the logic behind the log level functions.
 # If message is:
@@ -127,6 +156,7 @@ sub will_log {
 my $_recursion_counter;
 sub _handle_message {
     my $level = shift;
+    my $context = shift // 0;
     $_recursion_counter++;
 
     croak "Errors in message handling caused recursion"
@@ -135,7 +165,21 @@ sub _handle_message {
     croak "Invalid log level '$level'"
         unless exists $MASK_CHARS{$level};
 
-    my ($on_bit, $die_bit, $pretty_bit, $stack_bit ) =_get_bits(2, $MASK_CHARS{$level}[BITFLAG]);
+    if( Log::Lager::INTERNAL_TRACE() ) {
+        $STDERR->printflush( "Handling message at level $level\n" );
+    }
+
+    my ($on_bit, $die_bit, $pretty_bit, $stack_bit )
+        =_get_bits( $context, $MASK_CHARS{$level}[BITFLAG]);
+
+        if( Log::Lager::INTERNAL_TRACE() ) {
+            $STDERR->printflush( "Mask characters\n" );
+            use Data::Dumper; local $Data::Dumper::Sortkeys=1;  $STDERR->printflush( Dumper { 
+                    context => $context, 
+                    ON => $on_bit, DIE => $die_bit, PRETTY=> $pretty_bit, STACK => $stack_bit
+                }
+            );
+        }
 
     # Get raw messages from either callback or @_
     my @messages;
@@ -157,14 +201,17 @@ sub _handle_message {
     my $return_exception;
 
     # Is @messages a single entry of type Log::Lager::Message?
+    #TODO fix - need test case.
+    # UNIVERSAL::isa( $messages[0], 'Log::Lager::Message' )
+    # Need test case.
     if( eval {
         @messages == 1
         && $messages[0]->isa('Log::Lager::Message')
     }) {
 
         if( Log::Lager::INTERNAL_TRACE() ) {
-            STDERR->printflush( "Processing custom message object\n" );
-            use Data::Dumper; STDERR->printflush( Dumper \@messages );
+            $STDERR->printflush( "Processing custom message object\n" );
+            use Data::Dumper; $STDERR->printflush( Dumper \@messages );
         }
 
         $msg = $messages[0];
@@ -188,15 +235,15 @@ sub _handle_message {
         $return_exception = $msg->return_exception;
 
         if( Log::Lager::INTERNAL_TRACE() ) {
-            STDERR->printflush( "Finished processing custom message object\n" );
-            use Data::Dumper; STDERR->printflush( Dumper $msg );
+            $STDERR->printflush( "Finished processing custom message object\n" );
+            use Data::Dumper; $STDERR->printflush( Dumper $msg );
         }
 
     }
     elsif( $on_bit ) {
         $msg = $MESSAGE_CLASS->new(
             %$MESSAGE_CONFIG,
-            context         => 0,
+            context         => $context,
             loglevel        => $MASK_CHARS{$level}[FUNCTION],
             message         => \@messages,
             want_stack      => $stack_bit,
@@ -305,10 +352,10 @@ sub _get_bits {
     my $pretty_bit = $flag << PRETTY_BITSHIFT;
     my $stack_bit  = $flag << STACK_BITSHIFT;
 
-    my ($package, $sub, $hints) = (caller($frame))[0,3,10];
+    my ($package, $sub, $hints) = (Log::Lager::Util->caller($frame))[0,3,10];
 
-    my $s_mask = exists $SUBROUTINE_MASK{$sub}  ? $SUBROUTINE_MASK{$sub}  : [0,0];
-    my $p_mask = exists $PACKAGE_MASK{$package} ? $PACKAGE_MASK{$package} : [0,0];
+    my $s_mask = defined $sub     && exists $SUBROUTINE_MASK{$sub}  ? $SUBROUTINE_MASK{$sub}  : [0,0];
+    my $p_mask = defined $package && exists $PACKAGE_MASK{$package} ? $PACKAGE_MASK{$package} : [0,0];
     my $l_mask = $ENABLE_LEXICAL
                ? [$hints->{'Log::Lager::Log_enable'},
                   $hints->{'Log::Lager::Log_disable'}]
@@ -338,13 +385,14 @@ sub _load_lager_class {
     $class =~ /^\w+(::\w+)*$/
         or die "Invalid class name $class";
 
-    my $short_class = "${hierarchy}::$class"
-        if defined $hierarchy;
+    my $lager_class = 
+        join "::",
+        grep $_, "Log", "Lager", $hierarchy, $class;
 
-    my $got_class;
-    eval "use $class; \$got_class='$class'; 1"
-    or eval "use Log::Lager::$short_class; \$got_class = 'Log::Lager::$short_class'; 1"
-    or croak "Unable to load class $class";
+    my $got_class =
+          eval "require $class; 1"       ? $class
+        : eval "require $lager_class; 1" ? $lager_class
+        : croak "Unable to load class $class";
 
     return $got_class;
 }
@@ -370,6 +418,16 @@ sub _load_tap_class {
 
     # TODO Validate config here.
     my $obj = $class->new(%$config);
+
+    return $class;
+}
+
+sub _load_capture_class {
+    my ($class, $config) = @_;
+
+    $class = _load_lager_class($class, 'Capture');
+
+    # TODO Validate config here.
 
     return $class;
 }
@@ -437,10 +495,10 @@ sub import {
     }
 
     my $caller = caller;
+    my $hints = (caller(1))[10];
 
     # Import functions
     # Skip if this is not the first time through
-    my $hints = (caller(1))[10];
     unless( defined $hints->{'Log::Lager::Log_enable'} ) {
         no strict 'refs';
         my @import = $import
@@ -500,6 +558,58 @@ sub configure_default_message {
     return;
 }
 
+
+sub configure_capture {
+    my ($class, @conf) = @_;
+
+    die "Capture configuration must be an even length list of class and configuration pairs\n"
+        if ! 0 == @conf % 2;
+
+    my @captures;
+    my @to_enable;
+    while (@conf) {
+        my $class  = shift @conf;
+        my $config = shift @conf;
+
+        my $capture_class = _load_capture_class( $class, $config );
+        my $idx = _find_matching_capture( $capture_class, $config );
+        push @captures, (
+            ( defined $idx )
+            ? ( splice @ACTIVE_CAPTURES, $idx, 1) 
+            : ( [$capture_class, $config] )
+        );
+    }
+
+    while ( @ACTIVE_CAPTURES ) {
+        my $cap  = shift @ACTIVE_CAPTURES;
+        $cap->disable();
+    }
+
+    for my $capture ( @captures ) {
+        next if blessed $capture;;
+        my ($class,$config) = @$capture;
+        $capture = $class->enable(%$config);
+    }
+
+    @ACTIVE_CAPTURES = @captures;
+
+    return;
+}
+
+sub _find_matching_capture {
+    my ($class, $config) = @_;
+
+    for my $i ( 0..$#ACTIVE_CAPTURES ) {
+        my ($this) = $ACTIVE_CAPTURES[$i];
+        next unless $this;
+        
+        return $i
+            if $this->config_eq( %$config );
+    }
+
+    return;
+}
+
 sub configure_tap {
     my ( $class, $tap_class, $config ) = @_;
 
@@ -554,7 +664,6 @@ sub configure_sub_log_level {
     return;
 }
 
-
 sub _configure {
     my %config = @_;
 
@@ -569,6 +678,7 @@ sub _configure {
         tap_config => $TAP_CONFIG,
         tap_object => $TAP_OBJECT,
         output_func => $OUTPUT_FUNCTION,
+        capture     => \@ACTIVE_CAPTURES,
     );
 
 
@@ -583,6 +693,7 @@ sub _configure {
         local $TAP_CLASS;
         local $TAP_CONFIG;
         local $TAP_OBJECT = $TAP_OBJECT;
+        local @ACTIVE_CAPTURES = @ACTIVE_CAPTURES;
 
         Log::Lager->configure_lexical_control( $config{lexical_control} );
         Log::Lager->configure_base_log_level( $config{levels}{base} );
@@ -592,6 +703,7 @@ sub _configure {
             for keys %{$config{levels}{package}};
         Log::Lager->configure_default_message( %{$config{message} } );
         Log::Lager->configure_tap( %{$config{tap} } );
+        Log::Lager->configure_capture( @{$config{capture}} );
 
         $cfg{lex}         = $ENABLE_LEXICAL;
         $cfg{base}        = $BASE_MASK;
@@ -603,6 +715,7 @@ sub _configure {
         $cfg{tap_config}  = $TAP_CONFIG || {};
         $cfg{tap_object}  = $TAP_OBJECT;
         $cfg{output_func} = $OUTPUT_FUNCTION;
+        $cfg{capture}     = \@ACTIVE_CAPTURES;
 
         1;
     } or die;
@@ -617,6 +730,7 @@ sub _configure {
     $TAP_CONFIG         = $cfg{tap_config} || {};
     $TAP_OBJECT         = $cfg{tap_object};
     $OUTPUT_FUNCTION    = $cfg{output_func};
+    @ACTIVE_CAPTURES   = @{$cfg{capture}};
 
     return;
 }
@@ -685,7 +799,6 @@ sub _configure {
 sub set_lexical_log_level {
     my ( $class, $log_levels, $caller_level ) = @_;
 
-    $DB::single=1;
     return unless @$log_levels;
 
     $caller_level += 1;
@@ -713,7 +826,7 @@ sub effective_log_level { # TODO move log_level
     _apply_bits_to_mask( $BASE_MASK, ~$BASE_MASK, $mask );
 
     # Lexical
-    my ($package, $sub, $hints) = (caller(1))[0,3,10];
+    my ($package, $sub, $hints) = (Log::Lager::Util->caller(1))[0,3,10];
     _apply_bits_to_mask(
         $hints->{'Log::Lager::Log_enable'},
         $hints->{'Log::Lager::Log_disable'},
@@ -725,6 +838,7 @@ sub effective_log_level { # TODO move log_level
 
     # Sub
     _apply_bits_to_mask( @{$SUBROUTINE_MASK{$sub}||[0,0]}, $mask );
+    $mask->complete();
 
     return $mask->as_string;
 }
@@ -743,7 +857,7 @@ sub get_log_levels {
 
     # Lexical
     if ( _not_set_or_matches(lexical => $set) ) {
-        my $hints = (caller(0))[10];
+        my $hints = (Log::Lager::Util->caller(0))[10];
         $r->{lexical} = Log::Lager::Mask->new();
         _apply_bits_to_mask(
             $hints->{'Log::Lager::Log_enable'},
@@ -784,7 +898,8 @@ sub get_log_levels {
 
 sub set_config {
     my ($class, $cfg) = @_;
-    _configure( %$DEFAULT_CONFIG, %$cfg );
+    my $current = get_config();
+    _configure( %$current, %$cfg );
     return;
 }
 sub get_config {
@@ -797,6 +912,7 @@ sub get_config {
             package => {},
             sub     => {},
         },
+        capture => [],
     );
     $cfg{lexical_control} = $ENABLE_LEXICAL;
 

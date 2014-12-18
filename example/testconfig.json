@@ -1,0 +1,5 @@
+# Test config
+{   "base":"enable FEWTI disable DBGU stack F pretty F",
+    "tap":{ "File":{ "file_name" : "juice.log" } },
+    "capture": [ "STDERR", { "level": "WARN" } ],
+}

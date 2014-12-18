@@ -6,7 +6,7 @@ use warnings;
 use Carp qw( croak );
 $Carp::Internal{__PACKAGE__}++;
 
-use JSON::XS;
+use JSON  qw<>;
 use constant STAT_INODE => 1;
 
 use constant {
@@ -76,23 +76,7 @@ sub load {
         };
 
     my @lines = <$fh>;
-
-    # Get rid of trailing blank lines.
-    pop @lines while @lines && $lines[-1] =~ /^\s*$/;
-
-    # Check for END token.
-    if( $lines[-1] =~ /^\s*END\s*$/ ) {
-        pop @lines;
-    }
-    else {
-        warn "No END token in configuration file.\n";
-        ERROR( "No END token in configuration file.", $self->[NAME], \@lines );
-        return;
-    }
-
-    my $json = JSON::XS->new()->utf8->relaxed();
-
-    my $config = $json->decode( join '', @lines );
+    my $config = Log::Lager::Util->unpack_json_config( join '', @lines );
 
     $self->[NEXT_CHECK] = time + $self->[CHECK_FREQ];
 
