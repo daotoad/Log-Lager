@@ -935,6 +935,8 @@ sub get_config {
     $cfg{message}{$MESSAGE_CLASS} = {%$MESSAGE_CONFIG};
     $cfg{tap}{$TAP_CLASS} = {%$TAP_CONFIG};
 
+    $cfg{capture} = [ map { ( ref, $_->config() ) } @ACTIVE_CAPTURES ];
+
     return \%cfg;
 }
 
