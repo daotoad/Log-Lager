@@ -4,6 +4,34 @@ use Test::More;
 
 use Log::Lager;
 use Data::Dumper;
+
+subtest "Default configuration is correct" => sub {
+
+    Log::Lager->set_config({});
+    my $cfg = Log::Lager->get_config();
+    diag Dumper $cfg;
+    ok( $cfg->{lexical_control}, "Lexical controls are enabled" );
+
+    log_level_ok( $cfg->{levels}{base},
+        {   enable   => 'FEW',
+            disable  => 'TDIGU',
+            pretty   => '',
+            compact  => 'FEWTDIGU',
+            stack    => '',
+            nostack  => 'FEWTDIGU',
+            fatal    => 'F',
+            nonfatal => 'EWTDIGU',
+        },
+        "Base levels FEW enabled"
+    );
+    ok( ! %{$cfg->{levels}{package}}, "Package level hash is empty" );
+    ok( ! %{$cfg->{levels}{sub}},     "Sub level hash is empty"     );
+
+    is_deeply( $cfg->{message}, { Log::Lager::Message => {} }, "Message is LLM" );
+    is_deeply( $cfg->{tap}, { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
+};
+
+
 subtest "Everything on" => sub {
     $DB::single=1;
     Log::Lager->set_config({
@@ -32,31 +60,7 @@ subtest "Everything on" => sub {
     is_deeply( $cfg->{tap}, { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
 };
 
-subtest "Default configuration is correct" => sub {
-
-    Log::Lager->set_config({});
-    my $cfg = Log::Lager->get_config();
-    diag Dumper $cfg;
-    ok( $cfg->{lexical_control}, "Lexical controls are enabled" );
-
-    log_level_ok( $cfg->{levels}{base},
-        {   enable   => 'FEW',
-            disable  => 'TDIGU',
-            pretty   => '',
-            compact  => 'FEWTDIGU',
-            stack    => '',
-            nostack  => 'FEWTDIGU',
-            fatal    => 'F',
-            nonfatal => 'EWTDIGU',
-        },
-        "Base levels FEW enabled"
-    );
-    ok( ! %{$cfg->{levels}{package}}, "Package level hash is empty" );
-    ok( ! %{$cfg->{levels}{sub}},     "Sub level hash is empty"     );
-
-    is_deeply( $cfg->{message}, { Log::Lager::Message => {} }, "Message is LLM" );
-    is_deeply( $cfg->{tap}, { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
-};
+;
 
 done_testing();
 
