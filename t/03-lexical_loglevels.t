@@ -9,7 +9,7 @@ BEGIN {
 use Test::More @useargs;
 
 use File::Temp;
-use JSON::XS;
+use JSON;
 use Data::Dumper;
 
 sub Log::Lager::INTERNAL_TRACE() {1};

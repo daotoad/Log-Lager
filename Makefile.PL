@@ -1,12 +1,7 @@
-
 use strict;
 use warnings;
 
-
-
 use ExtUtils::MakeMaker 6.30;
-
-
 
 my %WriteMakefileArgs = (
   'ABSTRACT' => 'Easy to use, flexible, parsable logs.',
@@ -32,7 +27,7 @@ my %WriteMakefileArgs = (
     'Hash::Util' => '0',
     'IO::File' => '0',
     'IO::Handle' => '0',
-    'JSON::XS' => '0',
+    'JSON' => '0',
     'Scalar::Util' => '0',
     'Sys::Hostname' => '0',
     'Sys::Syslog' => '0',
