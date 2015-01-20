@@ -28,8 +28,6 @@ write_config_file( $cfg_name, <<'CFG' );
     },
     "lexical_control" : true
 }
-
-END
 CFG
 
 
@@ -47,9 +45,6 @@ write_config_file( $cfg_name, <<'CFG' );
     },
     "lexical_control" : false
 }
-
-END
-
 
 
 CFG
