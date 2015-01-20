@@ -1,4 +1,5 @@
 #!/usr/bin/perl 
+use feature 'say';
 
 use strict;
 use warnings;
@@ -34,9 +35,9 @@ Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } );
 
     clear_log();
 
-    $entry = get_log();
     $line = warned_here( 'Bar' );
-    like( $entry, qr/Foo/, 'Log entry generated') ;
+    $entry = get_log();
+    like( $entry, qr/Bar/, 'Log entry generated') ;
     like( $entry, qr/ line $line\./, 'Line number correct in string') ;
     like( $entry, qr/, $line,/, 'Line number correct in header') ;
     like( $entry, qr/, "$file",/, 'File name correct in header') ;
@@ -100,7 +101,7 @@ BEGIN {
     package Log::Lager::Message::Custom;
     use Log::Lager::InlineClass;
     our @ISA = 'Log::Lager::Message';
-    sub _header { [ "LLMC", @{ $_[0]->SUPER::_header()} ] } 
+    sub _header { print "LOGGING\n"; [ "LLMC", @{ $_[0]->SUPER::_header()} ] } 
 }
 
 {   my $log;
@@ -114,6 +115,7 @@ BEGIN {
             or die "error opening handle to variable $!\n";
         return $fh;
     }
+
     sub get_log {
         my $result = $log;
         return $result;
