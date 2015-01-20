@@ -3,7 +3,7 @@ use feature 'say';
 
 use strict;
 use warnings;
-use Test::More tests => 17;
+use Test::More tests => 21;
 #BEGIN { sub Log::Lager::INTERNAL_TRACE () {1} }
 use Log::Lager;
 use constant CAP => 'Log::Lager::Capture::STDERR';
