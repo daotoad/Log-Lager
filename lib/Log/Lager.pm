@@ -8,6 +8,7 @@ use Carp qw( croak );
 $Carp::Internal{'Log::Lager'}++;
 use Scalar::Util qw(weaken blessed reftype);
 use IO::Handle;
+use Storable qw< dclone >;
 
 use Log::Lager::Util;
 use Log::Lager::Mask;
@@ -93,7 +94,7 @@ our %MASK_CHARS; @MASK_CHARS{@MASK_CHARS} = @LOG_LEVELS;
 my $MASK_REGEX = join '', keys %MASK_CHARS;
 
 # === Initialize masks  ===
-Log::Lager->set_config( $DEFAULT_CONFIG );
+Log::Lager->set_config({});
 
 # === Message output ===
 # Log Level functions
@@ -896,12 +897,25 @@ sub get_log_levels {
 }
 
 
+sub get_default_config {
+    my $config = dclone($DEFAULT_CONFIG);
+    return $config;
+}
+
 sub set_config {
+    my ($class, $cfg) = @_;
+    my $default = get_default_config();
+    _configure( %$default, %$cfg );
+    return;
+}
+
+sub apply_config {
     my ($class, $cfg) = @_;
     my $current = get_config();
     _configure( %$current, %$cfg );
     return;
 }
+
 sub get_config {
     my %cfg = (
         lexical_control => 0,
