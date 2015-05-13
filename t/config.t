@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More;
+use Test::More tests => 2;
 
 use Log::Lager;
 use Data::Dumper;
@@ -27,8 +27,8 @@ subtest "Default configuration is correct" => sub {
     ok( ! %{$cfg->{levels}{package}}, "Package level hash is empty" );
     ok( ! %{$cfg->{levels}{sub}},     "Sub level hash is empty"     );
 
-    is_deeply( $cfg->{message}, { Log::Lager::Message => {} }, "Message is LLM" );
-    is_deeply( $cfg->{tap}, { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
+    is_deeply( $cfg->{event}, { Log::Lager::Event => {}       }, "Event is LLE" );
+    is_deeply( $cfg->{tap},   { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
 };
 
 
@@ -56,11 +56,9 @@ subtest "Everything on" => sub {
     ok( ! %{$cfg->{levels}{package}}, "Package level hash is empty" );
     ok( ! %{$cfg->{levels}{sub}},     "Sub level hash is empty"     );
 
-    is_deeply( $cfg->{message}, { Log::Lager::Message => {} }, "Message is LLM" );
-    is_deeply( $cfg->{tap}, { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
+    is_deeply( $cfg->{event}, { Log::Lager::Event => {} }, "Event is LLE" );
+    is_deeply( $cfg->{tap},   { Log::Lager::Tap::STDERR => {} }, "Tap is STDERR" );
 };
-
-;
 
 done_testing();
 

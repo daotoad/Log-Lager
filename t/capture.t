@@ -19,8 +19,8 @@ Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } );
         STDERR => {
             level       => 'WARN',
             dup         => 1,
-            msg_class   => 'Custom', 
-            msg_config  => {}
+            event_class   => 'Custom', 
+            event_config  => {}
         } 
     ); 
 
@@ -49,8 +49,8 @@ Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } );
         STDERR => {
             level => 'DEBUG',
             dup => 1,
-            msg_class => "Custom",
-            msg_config => {},
+            event_class => "Custom",
+            event_config => {},
         }
     ); 
 
@@ -70,7 +70,7 @@ Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } );
     is( get_log(), '', 'Did not log when level disabled') ;
 }
 
-Log::Lager->configure_default_message( Custom => {} );
+Log::Lager->configure_default_event( Custom => {} );
 {   Log::Lager->configure_capture(
         STDERR => {
             level       => 'WARN',
@@ -98,10 +98,13 @@ sub warned_here {
 }
 
 BEGIN {
-    package Log::Lager::Message::Custom;
+    package Log::Lager::Event::Custom;
     use Log::Lager::InlineClass;
-    our @ISA = 'Log::Lager::Message';
-    sub _header { print "LOGGING\n"; [ "LLMC", @{ $_[0]->SUPER::_header()} ] } 
+    our @ISA = 'Log::Lager::Event';
+    sub _extract_header {
+        print "LOGGING\n";
+        [ "LLEC", @{ $_[0]->SUPER::_extract_header()} ]
+    } 
 }
 
 {   my $log;

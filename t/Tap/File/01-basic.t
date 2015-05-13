@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 4;
 
 use Log::Lager::Tap::File;
 use Log::Lager::Message;
@@ -94,15 +94,15 @@ subtest 'Verify dump_config' => sub {
 
 subtest 'Verify logging behaviors' => sub {
     my $desc = "";
+    $DB::single=1;
     
     local $Log::Lager::Tap::File::DEFAULT_CHECK_FREQUENCY = 0;
     my $any_good_path = 'test-log-file.06';
     my $any_level = 'F';
-    my $any_message = [ "This is a message." ];
+    my $any_message = "This is a message.";
     eval {
-        my $any_mobj = Log::Lager::Message->new( message => $any_message, context => 0 );
-        my $any_other_message = [ "This, too, is a message." ];
-        my $any_omobj = Log::Lager::Message->new( message => $any_other_message, context => 0 );
+        my $any_other_message = "This, too, is a message.";
+        my $any_exception = bless {}, "MyTest::Exception";
 
     $DB::single=1;
         if( -e $any_good_path ) {
@@ -119,29 +119,24 @@ subtest 'Verify logging behaviors' => sub {
         $obj->select();
         ok( -e $any_good_path, "Log file created" );
 
-        $out->($any_level, 0, $any_mobj);
+        $out->($any_level, $any_message);
 
-        ok( file_has_message( $any_good_path, $any_message->[0] ),
+        ok( file_has_message( $any_good_path, $any_message ),
             "Log file has message text"
         );
 
         unlink $any_good_path
             or die "Error deleting file - $any_good_path - $!";
         
-        $out->($any_level, 0, $any_mobj);
+        $out->($any_level, $any_message);
 
 
         ok( -e $any_good_path, "New log file created on check" );
 
-        ok( file_has_message( $any_good_path, $any_message->[0] ),
+        ok( file_has_message( $any_good_path, $any_message ),
             "New log file created on check time got message text"
         );
 
-        $out->($any_level, 0, $any_omobj);
-
-        ok( file_has_message( $any_good_path, $any_other_message->[0] ),
-            "New log file created on check time got message text"
-        );
         1;
     } or die $@;
 

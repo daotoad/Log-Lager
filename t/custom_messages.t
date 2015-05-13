@@ -6,35 +6,35 @@ use Test::More tests => 3;
 use Log::Lager;
 
 BEGIN {
-    package Log::Lager::Message::Custom;
+    package Log::Lager::Event::Custom;
     use Log::Lager::InlineClass;
-    our @ISA = 'Log::Lager::Message';
-    sub format { return __PACKAGE__ }
+    our @ISA = 'Log::Lager::Event';
+    sub extract { return __PACKAGE__ }
 
-    package LLM::Custom;
+    package LLE::Custom;
     use Log::Lager::InlineClass;
-    our @ISA = 'Log::Lager::Message';
+    our @ISA = 'Log::Lager::Event';
 
-    sub format { return __PACKAGE__ }
+    sub extract { return __PACKAGE__ }
 }
 
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
-    Log::Lager->configure_default_message( 'Custom', {} );
-    WARN "Message";
-    is get_log(), 'Log::Lager::Message::Custom', "Loaded custom message class";
+    Log::Lager->configure_default_event( 'Custom', {} );
+    WARN "Event";
+    is get_log(), qq'"Log::Lager::Event::Custom"\n', "Loaded custom event class";
 }
     
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
-    Log::Lager->configure_default_message( 'LLM::Custom' => {} );
-    WARN "Message";
-    is get_log(), 'LLM::Custom', "Loaded custom message class";
+    Log::Lager->configure_default_event( 'LLE::Custom' => {} );
+    WARN "Event";
+    is get_log(), qq'"LLE::Custom"\n', "Loaded custom event class";
 }
 
 
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
-    Log::Lager->configure_default_message( 'Log::Lager::Message::Custom', {} );
-    WARN "Message";
-    is get_log(), 'Log::Lager::Message::Custom', "Loaded custom message class";
+    Log::Lager->configure_default_event( 'Log::Lager::Event::Custom', {} );
+    WARN "Event";
+    is get_log(), qq'"Log::Lager::Event::Custom"\n', "Loaded custom event class";
 }
     
 

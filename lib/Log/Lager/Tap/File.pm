@@ -98,7 +98,7 @@ sub gen_output_function {
     my ($self) = @_;
 
     return sub {
-        my ($level, $fatal, $message ) = @_;
+        my ($level, $message, $exception ) = @_;
 
         my $now = time;
         if(  $now >= $self->[NEXT_CHECK] ) {
@@ -120,9 +120,8 @@ sub gen_output_function {
 
         my $fh = $self->[HANDLE] || $Log::Lager::STDERR;
 
-        my $msg = $message->format() || '';
-        $fh->printflush($msg);
-        die "$msg\n" if $fatal;
+        $fh->printflush($message);
+        die $exception if $exception;
         return;
     };
 }

@@ -24,7 +24,7 @@ Before 1.0
     - Configuration clean up.
     - Unify and remove configuration cruft.
     DONE
-After 1.0 - i
+After 1.0 -
   THEME: More injections.
     - Provide a Log::Lager object for use with packages that want to consume a log object.  Probably using Log::Any as an adapter.
     - Allow Messages to take callbacks? or objects for use as custom Formatters
@@ -42,12 +42,14 @@ DONE
 capture - 
     Provide interface for capturing data from handles and logging it.
     STDERR and other handle like things.
+    DONE
 
 Methods --
    add: get/set_base_level
    update: load_config_file
    incompatible: log_level : return computed loglevel as string
    add: dump_config : return config as string
+    DONE
 
 Config Format --
   JSON 
@@ -77,4 +79,13 @@ Config Format --
     }
 
 }
+
+
+------------
+Rename "message" to "event" or something else.
+Make a serializer object
+Make a stack trace object
+
+
+
 

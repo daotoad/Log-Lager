@@ -71,13 +71,13 @@ sub gen_output_function {
     my ($self) = @_;
 
     return sub {
-        my ($level, $fatal, $message ) = @_;
+        my ($level, $message, $exception ) = @_;
         my $fh = $self->[HANDLE]
             or die "No output filehandle";
 
-        my $msg = $message->format() || '';
-        $fh->printflush($msg);
-        die "$msg\n" if $fatal;
+        $fh->printflush($message);
+        die $exception if $exception;
+
         return;
     };
 }

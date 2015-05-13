@@ -30,16 +30,16 @@ sub new {
 
     my $level       = $opt->{level};
     my $dup         = $opt->{dup};
-    my $msg_class   = $opt->{msg_class};
-    my $msg_config  = $opt->{msg_config};
+    my $event_class   = $opt->{event_class};
+    my $event_config  = $opt->{event_config};
 
     my $self = bless [], ref $class || $class;
 
     $self->[LEVEL]  = $level;
     $self->[DUP]    = $dup;
     $self->[HANDLE] = \*STDERR;
-    $self->[CONFIG] = $msg_config;
-    $self->[CLASS]  = $msg_class;
+    $self->[CONFIG] = $event_config;
+    $self->[CLASS]  = $event_class;
     $self->[DUP_HANDLE] = $self->_dup_handle();
     $self->[EMIT]   = $self->_generate_emitter();
 
@@ -68,8 +68,8 @@ sub config {
     return {
         level       => $self->[LEVEL],
         dup         => $self->[DUP],
-        msg_class   => $self->[CLASS],
-        msg_config  => $self->[CONFIG],
+        event_class   => $self->[CLASS],
+        event_config  => $self->[CONFIG],
     };
 }
 
@@ -90,32 +90,32 @@ sub _normalize_config {
 
     my $level      = delete $opt->{level};
     my $dup        = delete $opt->{dup};
-    my $msg_class  = delete $opt->{msg_class};
-    my $msg_config = delete $opt->{msg_config};
+    my $event_class  = delete $opt->{event_class};
+    my $event_config = delete $opt->{event_config};
 
     $level ||= 'ERROR';
     die "Cannot log STDERR at level '$level', level does not exist\n"
         if ! $LEVEL_HANDLER{$level};
 
-    if( $msg_config ) {
-        eval { $msg_config = [ %$msg_config ]; 1 }
+    if( $event_config ) {
+        eval { $event_config = [ %$event_config ]; 1 }
             or
-        eval { $msg_config = [ @$msg_config ]; 1 }
+        eval { $event_config = [ @$event_config ]; 1 }
             or
-        die "If defined, msg_config must be an array or hash reference\n";
+        die "If defined, event_config must be an array or hash reference\n";
 
-        die "msg_class must be set when msg_config is set\n"
-            if ! $msg_class;
+        die "event_class must be set when event_config is set\n"
+            if ! $event_class;
     }
 
-    if ( $msg_class ) {
-        die "msg_config must be set when msg_class is set\n"
-            if ! $msg_config;
+    if ( $event_class ) {
+        die "event_config must be set when event_class is set\n"
+            if ! $event_config;
     }
 
     return {
-        msg_config  => $msg_config,
-        msg_class   => $msg_class,
+        event_config  => $event_config,
+        event_class   => $event_class,
         level       => $level,
         dup         => $dup,
     };
@@ -151,10 +151,10 @@ sub _generate_emitter {
     my $handle      = $self->[DUP_HANDLE];
     my $level       = $self->[LEVEL];
     my $dup         = $self->[DUP];
-    my $msg_class   = $self->[CLASS];
-    my $msg_config  = $self->[CONFIG];
-    $msg_class = Log::Lager::_load_message_class({ $msg_class, $msg_config })
-        if $msg_class;
+    my $event_class   = $self->[CLASS];
+    my $event_config  = $self->[CONFIG];
+    $event_class = Log::Lager::_load_event_class({ $event_class, $event_config })
+        if $event_class;
 
     my $context = 0;
     my $level_handler =  Log::Lager->can($level)
@@ -163,17 +163,17 @@ sub _generate_emitter {
     my $code =        "sub {\n";
     $code .=          "    syswrite( \$handle, \$_[0] );\n"
         if $dup;
-    $code .= $msg_class
+    $code .= $event_class
         ? join( "\n", "    Log::Lager->log_from_context( '$level', $context,  ",
-                      "      $msg_class->new( ",
-                      "        context=> 1+$context, message => [\@_],",
-                      "        \@\$msg_config,  ",
+                      "      $event_class->new( ",
+                      "        context=> 1+$context, body => [\@_],",
+                      "        \@\$event_config,  ",
                       "      )",
                       "    );",''
         )
         : join( "\n", "    Log::Lager->log_from_context( '$level', $context,  ",
-                      "      $Log::Lager::MESSAGE_CLASS->new( ",
-                      "        context=> 1+$context, message => [\@_]",
+                      "      $Log::Lager::EVENT_CLASS->new( ",
+                      "        context=> 1+$context, body => [\@_]",
                       "      )",
                       "    );",'',
         );

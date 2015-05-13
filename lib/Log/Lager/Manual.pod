@@ -1,0 +1,106 @@
+__END__
+
+=pod
+
+=head1 NAME
+ 
+Log::Lager::Manual - Lag::Lager: What It Is and How To Drink It
+ 
+=head1 VERSION
+ 
+version 1.00.00
+ 
+=head1 WHAT IS LOG::LAGER?
+
+Log::Lager stems from my dissatisfaction with other, existing logging libraries.
+
+=over 4
+
+=item
+
+Easy to add logging messages.
+
+=item
+
+Data dumping should be automatic.
+
+=item
+
+Log files should be machine readable.
+
+=item
+
+Run-time changes to log levels.
+
+=item
+
+Fine grained control of log levels.
+
+=item
+
+Highly modular and customizable.
+
+=item
+
+Must scale from adding a few debugging messages to a short script up to instrumenting large applications.
+
+=item
+
+No log object to pass around.
+
+=back
+
+=head1 WHY LOG::LAGER?
+
+Logging should be easy AND powerful.
+
+
+=head1 EXAMPLE
+
+At it's simplest:
+
+use Log::Lager;
+
+TRACE 'Begin execution', { arguments => \@ARGV };
+
+my $conf = parse_args(\@ARGV);
+
+my $path = $conf->{path} // '.';
+opendir my $dh, $path
+    or FATAL "Error opening directory", { path => $path, message => $! };
+
+my $pattern = $conf->{match};
+
+while ( <$dh> ) {
+    DEBUG "Checking file name", $name;
+
+    if ( $pattern ) {
+        my $matched = /$pattern/;
+
+        TRACE "Pattern match", {
+            matched => $matched,
+            file_name => $_,
+            pattern => $pattern,
+        };
+    
+        next unless $pattern;
+    }
+
+    print "$_\n";
+    
+}
+
+TRACE "Complete execution";
+
+sub parse_args {
+    my ( $argv ) = @_;
+
+    my %conf;
+
+    # Do stuff
+
+    ERROR "Error parsing arguments", message => $error;
+
+    return \%conf;
+}
+
