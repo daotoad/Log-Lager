@@ -6,7 +6,7 @@ use warnings;
 use Test::More tests => 4;
 
 use Log::Lager::Tap::File;
-use Log::Lager::Message;
+use Log::Lager::Event;
 
 my $pkg = 'Log::Lager::Tap::File';
 
@@ -94,17 +94,19 @@ subtest 'Verify dump_config' => sub {
 
 subtest 'Verify logging behaviors' => sub {
     my $desc = "";
-    $DB::single=1;
     
     local $Log::Lager::Tap::File::DEFAULT_CHECK_FREQUENCY = 0;
     my $any_good_path = 'test-log-file.06';
     my $any_level = 'F';
-    my $any_message = "This is a message.";
+    my $any_message = 'Some message here';
+    my $any_logging_event = Log::Lager::Event->new(
+        body => $any_message,
+        will_log => 1,
+    );
     eval {
         my $any_other_message = "This, too, is a message.";
         my $any_exception = bless {}, "MyTest::Exception";
 
-    $DB::single=1;
         if( -e $any_good_path ) {
             unlink $any_good_path
                 or die "Error deleting file - $any_good_path - $!";
@@ -119,7 +121,7 @@ subtest 'Verify logging behaviors' => sub {
         $obj->select();
         ok( -e $any_good_path, "Log file created" );
 
-        $out->($any_level, $any_message);
+        $out->($any_level, $any_logging_event);
 
         ok( file_has_message( $any_good_path, $any_message ),
             "Log file has message text"
@@ -127,8 +129,9 @@ subtest 'Verify logging behaviors' => sub {
 
         unlink $any_good_path
             or die "Error deleting file - $any_good_path - $!";
-        
-        $out->($any_level, $any_message);
+
+   $DB::single=1; 
+        $out->($any_level, $any_logging_event);
 
 
         ok( -e $any_good_path, "New log file created on check" );

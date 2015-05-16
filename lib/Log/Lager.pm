@@ -16,7 +16,7 @@ use Log::Lager::Event;
 use Log::Lager::Tap::STDERR;
 use Log::Lager::Component;
 use Log::Lager::Context;
-use Log::Lager::Serialize;
+use Log::Lager::Format;
 
 *INTERNAL_TRACE = sub () { 0 }
     unless defined &INTERNAL_TRACE;
@@ -209,14 +209,9 @@ sub _handle_event {
         expanded    => $log_settings->{expanded},
     );
 
-    my $serialized = $event->serialize();
-
-    my @return_values    = $event->return_result();
-    my $return_exception = $event->return_exception();
-
     if( Log::Lager::INTERNAL_TRACE() ) {
         $STDERR->printflush( "Finished processing event object\n" );
-        use Data::Dumper; $STDERR->printflush( Dumper $serialized );
+        use Data::Dumper; $STDERR->printflush( Dumper $event );
     }
 
     if ( $log_settings->{will_log} ) {
@@ -226,12 +221,18 @@ sub _handle_event {
                         ->new()
                         ->gen_output_function();
 
-        $emitter->($level_mask, $serialized, $return_exception );
+        $emitter->($level_mask, $event);
 
         Log::Lager->load_config();
     }
 
+    my @return_values    = $event->return_result();
+    my $return_exception = $event->return_exception();
+
     $_recursion_counter--;
+
+    die $return_exception
+        if $return_exception;
 
     return                   if !defined wantarray;
     return @return_values    if wantarray;

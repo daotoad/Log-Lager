@@ -32,7 +32,7 @@ After 1.0 -
     - Allow Lager to provide default Formatter objects.
     - Allow Lager to provide default Emitter objects.  - DONE See Tap objects
 
-Split configuration---
+Split configuration---DONE
     1. Some items belong in lexical config
         enable disable stack nostack fatal nonfatal pretty compact
     2. Other things do not.
@@ -65,8 +65,8 @@ Config Format --
         },
     },
 
-    message => {
-        Log::Lager::Message::Standard => { whatever config needed },
+    event => {
+        Log::Lager::Event::Standard => { whatever config needed },
     },
 
     tap => {
@@ -78,14 +78,14 @@ Config Format --
         Handle => {},
     }
 
+
 }
 
 
 ------------
-Rename "message" to "event" or something else.
-Make a serializer object
+DONE Rename "message" to "event" or something else.
+DONE Make a serializer object / rename to formatter
 Make a stack trace object
-
 
 
 

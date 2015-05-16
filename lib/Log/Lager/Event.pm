@@ -6,8 +6,11 @@ use Config          qw< %Config >;
 use POSIX           qw< strftime >;
 use Time::Hires     qw<>;
 use Data::Abridge   qw< abridge_items_recursive >;
+use Scalar::Util    qw< blessed >;
 
 use Log::Lager::Component;
+use Log::Lager::Context;
+use Log::Lager::Format;
 
 
 use constant DEFAULT_HEADER_FIELDS => qw(
@@ -45,10 +48,14 @@ sub new {
         return_wantarray    => delete $opt{return_wantarray},
         return_exception    => delete $opt{return_exception},
 
-        header_fields       => delete $opt{header_fields} || [$class->DEFAULT_HEADER_FIELDS],
-        stack_fields        => delete $opt{header_fields} || [$class->DEFAULT_STACK_FIELDS],
-        footer_fields       => delete $opt{footer_fields} || [$class->DEFAULT_FOOTER_FIELDS],
-        timestamp_format    => delete $opt{timestamp_format} || $class->DEFAULT_TIMESTAMP_FORMAT,
+        header_fields       => delete $opt{header_fields}
+                                || [$class->DEFAULT_HEADER_FIELDS],
+        stack_fields        => delete $opt{header_fieldsa}
+                                || [$class->DEFAULT_STACK_FIELDS],
+        footer_fields       => delete $opt{footer_fields}
+                                || [$class->DEFAULT_FOOTER_FIELDS],
+        timestamp_format    => delete $opt{timestamp_format}
+                                || $class->DEFAULT_TIMESTAMP_FORMAT,
 
         will_log            => delete $opt{will_log},
         will_die            => delete $opt{will_die},
@@ -62,7 +69,10 @@ sub new {
         package             => delete $opt{package},
         line_number         => delete $opt{line_number},
         subroutine          => delete $opt{subroutine},
-        serializer          => delete $opt{serializer} || ['Log::Lager::Serialize::JSON'],
+
+        formatter           => delete $opt{formatter}
+                                || Log::Lager::Format::JSON->new(),
+        formatted           => delete $opt{formatted}
     };
 
     # TODO  -  die here on leftover %opt
@@ -138,6 +148,11 @@ sub populate {
     $self = $self->_exec_log();
     $self = $self->_exec_fatal();
 
+    my $formatted = $self->format();
+
+    $self->{return_exception} ||= $formatted
+        if $self->{will_die};
+
     return $self;
 }
 
@@ -178,10 +193,7 @@ sub _exec_fatal {
 sub _exec {
     my ($self, $code) = @_;
 
-    $DB::single = 1;
-
-    return $self
-        unless $code;
+    return $self unless $code;
 
     my @results = $code->($self);
 
@@ -219,21 +231,41 @@ sub extract {
     return $extracted;
 }
 
-sub serialize {
+sub format {
     my ($self) = @_;
 
-    return unless $self->{will_log};
-    
-    my ($s_class, @s_opt) = @{$self->{serializer}};
+    return
+        unless $self->{will_log};
 
-    my $s = $s_class->new( @s_opt );
-    my $serialized = $s->serialize( $self->{expanded}, $self->extract() );
+    return $self->{formatted}
+        if defined $self->{formatted};
 
-    # Set exception equal to formatted event if throwing, but not set
-    $self->{return_exception} ||= $serialized
-        if $self->{will_die};
+    my $formatter = blessed($self->{formatter}) && $self->{formatter}->isa('Log::Lager::Format')
+            ? $self->{formatter}
+            : do {
+                my ($f_class, @f_opt) = @{$self->{formatter}};
+                my $f = $f_class->new( @f_opt );
+            };
 
-    return $serialized;
+    my $formatted = $formatter->format( $self );
+    $self->{formatted} = $formatted;
+
+    return $formatted;
+}
+
+sub will_log {
+    my ($self) = @_;
+    return !!$self->{will_log};
+}
+
+sub will_die {
+    my ($self) = @_;
+    return !!$self->{will_die};
+}
+
+sub want_expanded_format {
+    my ($self) = @_;
+    return !!$self->{expanded};
 }
 
 sub return_result {

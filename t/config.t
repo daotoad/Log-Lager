@@ -33,7 +33,6 @@ subtest "Default configuration is correct" => sub {
 
 
 subtest "Everything on" => sub {
-    $DB::single=1;
     Log::Lager->set_config({
             levels => {base => 'enable FEWTDIGU pretty FEWTDIGU fatal FEWTDIGU stack FEWTDIGU'},
     });

@@ -62,7 +62,7 @@ sub open_handle {
     $log = '';
 }
 
-{   use Log::Lager "enable FEWTDIG";
+{   use Log::Lager "enable FEWTDIG fatal FEWTDIGU";
 
     my $msg = Log::Lager::Event->new(
         body => [ "Logged" ],
@@ -84,7 +84,7 @@ sub open_handle {
 
     my $msg = Log::Lager::Event->new(
         body => [ "Logged" ],
-        return_exception => "Shit is broke",
+        return_exception => undef,
         context => 0,
     );
     eval {

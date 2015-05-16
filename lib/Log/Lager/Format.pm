@@ -1,11 +1,9 @@
-package Log::Lager::Serialize;
+package Log::Lager::Format;
 use strict;
 use warnings;
 use Carp qw<croak>;
 use Config qw( %Config );
 use Log::Lager::Component;
-
-
 
 sub new {
     my ($class) = @_;
@@ -13,23 +11,23 @@ sub new {
     return bless {}, $class 
 }
 
-sub serialize {
-    my ($self, $expanded, $event) = @_;
+sub format {
+    my ($self, $event) = @_;
 
-    return $expanded
-        ? $self->_serialize_expanded( $event ) 
-        : $self->_serialize_compact( $event );
+    return $event->want_expanded_format()
+        ? $self->_format_expanded( $event ) 
+        : $self->_format_compact( $event );
 }
 
 BEGIN {
-    package Log::Lager::Serialize::JSON;
+    package Log::Lager::Format::JSON;
     use strict;
     use warnings;
 
     use JSON qw<>;
     use Log::Lager::InlineClass;
 
-    our @ISA='Log::Lager::Serialize';
+    our @ISA='Log::Lager::Format';
 
     our $compact_json =
         JSON->new()
@@ -47,15 +45,17 @@ BEGIN {
             ->allow_nonref(1)
             ->canonical(1);
 
-    sub _serialize_compact {
+    sub _format_compact {
         my ($self, $event) = @_;
-        my $message = $compact_json->encode($event);
+        my $extracted = $event->extract();
+        my $message = $compact_json->encode($extracted);
         return "$message\n";
     }
 
-    sub _serialize_expanded {
+    sub _format_expanded {
         my ($self, $event) = @_;
-        my $message = $expanded_json->encode($event);
+        my $extracted = $event->extract();
+        my $message = $expanded_json->encode($extracted);
         return $message;
     }
 
@@ -67,7 +67,7 @@ BEGIN {
 
 =head1 NAME
 
-Log::Lager::Serialize
+Log::Lager::Format
 
 =head1 SYNOPSIS
 

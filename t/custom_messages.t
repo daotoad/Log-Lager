@@ -9,32 +9,32 @@ BEGIN {
     package Log::Lager::Event::Custom;
     use Log::Lager::InlineClass;
     our @ISA = 'Log::Lager::Event';
-    sub extract { return __PACKAGE__ }
+    sub format { return __PACKAGE__ }
 
     package LLE::Custom;
     use Log::Lager::InlineClass;
     our @ISA = 'Log::Lager::Event';
 
-    sub extract { return __PACKAGE__ }
+    sub format { return __PACKAGE__ }
 }
 
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
     Log::Lager->configure_default_event( 'Custom', {} );
     WARN "Event";
-    is get_log(), qq'"Log::Lager::Event::Custom"\n', "Loaded custom event class";
+    is get_log(), 'Log::Lager::Event::Custom', "Loaded custom event class";
 }
     
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
     Log::Lager->configure_default_event( 'LLE::Custom' => {} );
     WARN "Event";
-    is get_log(), qq'"LLE::Custom"\n', "Loaded custom event class";
+    is get_log(), 'LLE::Custom', "Loaded custom event class";
 }
 
 
 {   Log::Lager->configure_tap( Handle => { open => 'main::open_handle' } ); 
     Log::Lager->configure_default_event( 'Log::Lager::Event::Custom', {} );
     WARN "Event";
-    is get_log(), qq'"Log::Lager::Event::Custom"\n', "Loaded custom event class";
+    is get_log(), 'Log::Lager::Event::Custom', "Loaded custom event class";
 }
     
 

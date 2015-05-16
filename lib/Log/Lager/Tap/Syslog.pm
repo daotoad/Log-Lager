@@ -94,9 +94,9 @@ sub gen_output_function {
     my %levels = %{$self->[LEVELS]};
 
     return sub {
-        my ($level, $message, $exception ) = @_;
+        my ($level, $event) = @_;
+        my $message = $event->formatted();
         Sys::Syslog::syslog( $levels{$level}, "%s", $message );
-        die $exception if $exception;
         return;
     };
 }

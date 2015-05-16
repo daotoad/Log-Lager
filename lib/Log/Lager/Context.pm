@@ -105,7 +105,6 @@ sub get_args {
 # Returns the same stuff as built-in caller()
 # Except adds SUB called from and STACK_FRAME
 sub Caller {
-        $DB::single=1;
     my ($class, $target_level, $allow_internal) = @_;
     my $orig = $target_level;
     $target_level += 1;
@@ -126,7 +125,6 @@ sub Caller {
         $level += 1;
 
     } while ( $level <= $target_level );
-    $DB::single = 1;
 
     my $sub_context = (CORE::caller($level))[3];
     push @info, $sub_context, $level-1;
