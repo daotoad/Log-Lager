@@ -5,7 +5,7 @@ use Carp            qw<croak>;
 use Config          qw< %Config >;
 use POSIX           qw< strftime >;
 use Time::Hires     qw<>;
-use Data::Abridge   qw< abridge_items_recursive >;
+use Data::Abridge   qw< abridge_recursive >;
 use Scalar::Util    qw< blessed >;
 
 use Log::Lager::Component;
@@ -26,21 +26,24 @@ use constant DEFAULT_HEADER_FIELDS => qw(
     subroutine
 );
 
-use constant DEFAULT_STACK_FIELDS => qw(
-    stack
-);
-use constant DEFAULT_FOOTER_FIELDS => qw();
+use constant DEFAULT_TEMPLATE => [ [DEFAULT_HEADER_FIELDS], 'body', 'stack' ];
+
+
 use constant DEFAULT_TIMESTAMP_FORMAT => '%Y-%m-%dT%H:%M:%S.%3NZ';
 
 
 sub new {
     my ($class, %opt) = @_;
 
+    my $body = delete $opt{body} || [];
+    $body = [$body] unless ref $body eq 'ARRAY';
+
+
     my $self = {
         epoch               => Time::HiRes::time(),
         log_level           => delete $opt{log_level},
         context             => delete $opt{context} || 0,
-        body                => delete $opt{body} || [],
+        body                => $body,
         on_log              => delete $opt{on_log},
         on_fatal            => delete $opt{on_fatal},
 
@@ -48,12 +51,8 @@ sub new {
         return_wantarray    => delete $opt{return_wantarray},
         return_exception    => delete $opt{return_exception},
 
-        header_fields       => delete $opt{header_fields}
-                                || [$class->DEFAULT_HEADER_FIELDS],
-        stack_fields        => delete $opt{header_fieldsa}
-                                || [$class->DEFAULT_STACK_FIELDS],
-        footer_fields       => delete $opt{footer_fields}
-                                || [$class->DEFAULT_FOOTER_FIELDS],
+        extract_template    => delete $opt{extract_template}
+                                || $class->DEFAULT_TEMPLATE,
         timestamp_format    => delete $opt{timestamp_format}
                                 || $class->DEFAULT_TIMESTAMP_FORMAT,
 
@@ -72,7 +71,8 @@ sub new {
 
         formatter           => delete $opt{formatter}
                                 || Log::Lager::Format::JSON->new(),
-        formatted           => delete $opt{formatted}
+        formatted           => undef,
+        extracted           => undef,
     };
 
     # TODO  -  die here on leftover %opt
@@ -148,12 +148,18 @@ sub populate {
     $self = $self->_exec_log();
     $self = $self->_exec_fatal();
 
+    $self->extract();
     my $formatted = $self->format();
 
     $self->{return_exception} ||= $formatted
         if $self->{will_die};
 
     return $self;
+}
+
+sub finalize {
+    my ($self) = @_;
+
 }
 
 sub _format_timestamp {
@@ -208,26 +214,57 @@ sub _exec {
     return $self;
 }
 
-sub _extract_header { return [ $_[0]->get( @{$_[0]->{header_fields}} ) ] }
-sub _extract_body   { return $_[0]->{body} }
-sub _extract_stack  { return [ $_[0]->get( @{$_[0]->{stack_fields}}  ) ] }
-sub _extract_footer { return [ $_[0]->get( @{$_[0]->{footer_fields}} ) ] }
+sub _recursive_extract {
+    my ($self, $template) = @_;
+
+    my $type = ref $template;
+
+    return $type eq 'ARRAY' ? $self->_extract_array($template)
+        :  $type eq 'HASH'  ? $self->_extract_hash($template)
+        :                     $self->_extract_scalar($template);
+}
+
+sub _extract_array {
+    my ($self, $template) = @_;
+
+    return [ map $self->_recursive_extract($_), @$template ];
+}
+
+sub _extract_hash {
+    my ($self, $template) = @_;
+
+    my %extracted;
+    @extracted{ keys %$template } = map $self->_recursive_extract($_), values %$template;
+
+    return \%extracted;
+}
+
+sub _extract_scalar {
+    my ($self, $template) = @_;
+    my $string = "$template";
+
+    return
+        if $string eq 'stack'
+        && !$self->{want_stack};
+
+    return @{ $self->{body} }
+        if $string eq 'body';
+
+    return exists $self->{$string} ? $self->get($string)
+        :  croak "Invalid item '$string' in event template";
+}
+
 
 sub extract {
     my ($self) = @_;
 
-    my @extracted = (
-        $self->_extract_header(),
-        $self->_extract_body(),
-        ( $self->{want_stack} 
-            ? $self->_extract_stack()
-            : ()
-        ),
-        $self->_extract_footer(),
-    );
+    my $template = $self->{extract_template};
+    my $extracted = $self->_recursive_extract($template);
 
-    my $extracted = abridge_items_recursive( @extracted );
 
+    $extracted = abridge_recursive( $extracted );
+
+    $self->{extracted} = $extracted;
     return $extracted;
 }
 

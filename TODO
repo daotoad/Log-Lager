@@ -86,6 +86,9 @@ Config Format --
 DONE Rename "message" to "event" or something else.
 DONE Make a serializer object / rename to formatter
 Make a stack trace object
+DONE Tweak standard event composition
+    Maybe build from template array [ [field, field, ... ], { name => field, ... }, field, field, field ]
+    How to show where STACK goes?  Just a normal field, I guess.
 
 
 
